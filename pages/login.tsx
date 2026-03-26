@@ -39,12 +39,12 @@ export default function Login() {
   return (
     <>
       <Head>
-        <title>Login - Studiely Admin</title>
+        <title>Login - Blog Admin</title>
       </Head>
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 tracking-tight">
-            Studiely Admin Panel
+            Blog Admin Panel
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Sign in to manage blog posts and settings
@@ -74,7 +74,7 @@ export default function Login() {
                     type="email"
                     {...register('email')}
                     className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
-                    placeholder="admin@studiely.app"
+                    placeholder="admin@example.com"
                   />
                 </div>
                 {errors.email && <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>}

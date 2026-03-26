@@ -3,19 +3,14 @@ import { requireAuthentication } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import SitesList from '@/components/SitesList';
 import { supabase } from '@/lib/supabase/server';
-
-type Site = {
-  id: string;
-  name: string | null;
-  domain: string;
-};
+import type { Site } from '@/types/site';
 
 interface SitesPageProps {
   sites: Site[];
 }
 
 export const getServerSideProps = requireAuthentication(async () => {
-  const { data: sites, error } = await supabase.from('sites').select('id,name,domain').order('created_at', {
+  const { data: sites, error } = await supabase.from('sites').select('id,name,domain,site_key').order('created_at', {
     ascending: true,
   });
 

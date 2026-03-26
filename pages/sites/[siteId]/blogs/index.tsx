@@ -1,11 +1,14 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
+import { useRouter } from 'next/router';
+import { useState } from 'react';
 import { requireAuthentication } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import type { Site } from '@/types/site';
 
 type Blog = {
   id: string;
@@ -14,12 +17,6 @@ type Blog = {
   slug: string;
   cover_image_url: string | null;
   display_date: string | null;
-};
-
-type Site = {
-  id: string;
-  name: string | null;
-  domain: string;
 };
 
 interface SiteBlogsPageProps {
@@ -32,7 +29,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 
   const { data: site, error: siteError } = await supabase
     .from('sites')
-    .select('id,name,domain')
+    .select('id,name,domain,site_key')
     .eq('id', siteId)
     .single();
 
@@ -59,27 +56,64 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 });
 
 export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
+  const router = useRouter();
+  const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeletingBlogId(pendingDelete.id);
+    try {
+      const response = await fetch(`/api/sites/${site.id}/blogs/${pendingDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.message || 'Failed to delete blog');
+      }
+
+      await router.replace(router.asPath);
+      setPendingDelete(null);
+      setDeleteError(null);
+    } catch (error: any) {
+      setDeleteError(error?.message || 'Failed to delete blog');
+    } finally {
+      setDeletingBlogId(null);
+    }
+  };
+
   return (
     <AdminLayout>
       <Head>
-        <title>Blogs - {site.name || site.domain}</title>
+        <title>Blogs - {site.name || site.domain || site.site_key} | Skyen Blog Admin</title>
       </Head>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Website</p>
-          <h1 className="text-2xl font-bold text-gray-900">{site.name || site.domain}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{site.name || site.domain || site.site_key}</h1>
           <p className="text-gray-500 mt-1">
-            Manage blog posts for <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{site.domain}</span>.
+            Manage blog posts for{' '}
+            <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{site.site_key}</span>.
           </p>
         </div>
-        <Link
-          href={`/sites/${site.id}/blogs/create`}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition shadow-sm"
-        >
-          <PlusCircle className="w-5 h-5" />
-          Add Blog
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/sites/${site.id}/setup`}
+            className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-4 rounded-lg border border-indigo-200 transition"
+          >
+            Setup
+          </Link>
+          <Link
+            href={`/sites/${site.id}/blogs/create`}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition shadow-sm"
+          >
+            <PlusCircle className="w-5 h-5" />
+            Add Blog
+          </Link>
+        </div>
       </div>
 
       <div className="mb-6 relative max-w-md">
@@ -94,6 +128,11 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
           readOnly
         />
       </div>
+      {deleteError && (
+        <div className="mb-6 border border-red-200 bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {deleteError}
+        </div>
+      )}
 
       {blogs.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl border border-gray-200 border-dashed">
@@ -152,14 +191,51 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                   >
                     <Edit2 className="w-4 h-4" /> Edit
                   </Link>
-                  <span className="flex items-center justify-center p-2 text-gray-300 border border-transparent rounded-lg text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setPendingDelete({ id: blog.id, title: blog.title });
+                    }}
+                    disabled={deletingBlogId === blog.id}
+                    className="flex items-center justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={deletingBlogId === blog.id ? 'Deleting...' : 'Delete blog'}
+                  >
                     <Trash2 className="w-4 h-4" />
-                  </span>
-                  {/* TODO: Implement per-site delete with confirmation similar to existing blogs page */}
+                  </button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete blog post?</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              You are about to delete <span className="font-medium text-gray-900">"{pendingDelete.title}"</span>.
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => setPendingDelete(null)}
+                disabled={deletingBlogId === pendingDelete.id}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                onClick={handleDelete}
+                disabled={deletingBlogId === pendingDelete.id}
+              >
+                {deletingBlogId === pendingDelete.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </AdminLayout>

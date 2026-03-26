@@ -5,12 +5,7 @@ import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogForm from '@/components/BlogForm';
 import { supabase } from '@/lib/supabase/server';
 import { Loader2 } from 'lucide-react';
-
-type Site = {
-  id: string;
-  name: string | null;
-  domain: string;
-};
+import type { Site } from '@/types/site';
 
 type Blog = {
   id: string;
@@ -43,7 +38,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 
   const { data: site, error: siteError } = await supabase
     .from('sites')
-    .select('id,name,domain')
+    .select('id,name,domain,site_key')
     .eq('id', blog.site_id)
     .single();
 
@@ -75,7 +70,7 @@ export default function EditSiteBlog({ site, blog }: EditSiteBlogPageProps) {
   return (
     <AdminLayout>
       <Head>
-        <title>Edit {blog.title} - {site.name || site.domain}</title>
+        <title>Edit {blog.title} - {site.name || site.domain || site.site_key}</title>
       </Head>
       <BlogForm initialData={blog} isEdit={true} siteId={site.id} />
     </AdminLayout>

@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Link2, LogOut } from 'lucide-react';
 import axios from 'axios';
 
 export default function Sidebar() {
@@ -17,14 +17,17 @@ export default function Sidebar() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Blogs Management', href: '/blogs', icon: FileText },
+    { name: 'Add / Connect Site', href: '/sites/connect', icon: Link2 },
   ];
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col bg-white border-r border-gray-200 shadow-sm">
+    <div className="hidden md:flex md:w-72 md:flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 border-r border-slate-800 shadow-2xl">
       <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
-        <div className="flex items-center flex-shrink-0 px-6 font-bold text-2xl text-blue-600 tracking-tight">
-          Admin
+        <div className="px-6">
+          <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Control Panel</p>
+            <p className="mt-1 text-lg font-semibold text-white">Skyen Blog Admin</p>
+          </div>
         </div>
         <div className="mt-8 flex-grow flex flex-col">
           <nav className="flex-1 px-4 pb-4 space-y-1">
@@ -36,13 +39,13 @@ export default function Sidebar() {
                   href={item.href}
                   className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/30'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
                   }`}
                 >
                   <item.icon
                     className={`flex-shrink-0 -ml-1 mr-3 h-5 w-5 ${
-                      isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'
+                      isActive ? 'text-cyan-300' : 'text-slate-400 group-hover:text-slate-200'
                     }`}
                     aria-hidden="true"
                   />
@@ -52,17 +55,17 @@ export default function Sidebar() {
             })}
           </nav>
         </div>
-        <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+        <div className="flex-shrink-0 flex border-t border-slate-800 p-4">
           <button
             onClick={handleLogout}
-            className="flex-shrink-0 w-full group block bg-gray-50 p-3 rounded-lg hover:bg-red-50 transition"
+            className="flex-shrink-0 w-full group block bg-slate-900/80 p-3 rounded-lg hover:bg-red-500/15 border border-slate-700 hover:border-red-400/50 transition"
           >
             <div className="flex items-center">
               <div>
-                <LogOut className="inline-block h-5 w-5 text-gray-400 group-hover:text-red-500" />
+                <LogOut className="inline-block h-5 w-5 text-slate-400 group-hover:text-red-300" />
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700 group-hover:text-red-700">Logout</p>
+                <p className="text-sm font-medium text-slate-200 group-hover:text-red-200">Logout</p>
               </div>
             </div>
           </button>
