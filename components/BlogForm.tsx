@@ -10,8 +10,7 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
   loading: () => <div className="h-[300px] w-full bg-gray-50 animate-pulse rounded-xl border border-gray-200" />
 });
 
-import { Loader2, Save, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { Loader2, Save } from 'lucide-react';
 
 interface BlogFormProps {
   initialData?: any;
@@ -34,8 +33,14 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
       display_date: initialData?.display_date ? new Date(initialData.display_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       cover_image_url: initialData?.cover_image_url || '',
       content: initialData?.content || '',
-      tags: initialData?.tags || '' // For simplicity, comma separated string
-    }
+      author_name: initialData?.author_name || '',
+      keywords: initialData?.keywords ?? initialData?.tags ?? '',
+      article_section: initialData?.article_section || '',
+      in_language: initialData?.in_language || '',
+      publisher_name: initialData?.publisher_name || '',
+      publisher_logo_url: initialData?.publisher_logo_url || '',
+      canonical_url: initialData?.canonical_url || '',
+    },
   });
 
   const titleWatcher = watch('title');
@@ -83,7 +88,14 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
         display_date: new Date(data.display_date).toISOString(),
         cover_image_url: data.cover_image_url,
         content: data.content,
-        updated_at: new Date().toISOString()
+        author_name: data.author_name || null,
+        keywords: data.keywords || null,
+        article_section: data.article_section || null,
+        in_language: data.in_language || null,
+        publisher_name: data.publisher_name || null,
+        publisher_logo_url: data.publisher_logo_url || null,
+        canonical_url: data.canonical_url || null,
+        updated_at: new Date().toISOString(),
       };
 
       if (isEdit) {
@@ -107,9 +119,6 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl">
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm tracking-wide sticky top-0 z-10 border border-gray-200 border-b">
         <div className="flex items-center gap-4">
-          <Link href={`/sites/${siteId}/blogs`} className="text-gray-500 hover:text-gray-900 transition">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
           <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
         </div>
         <button
@@ -128,7 +137,9 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Blog Title *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Blog title * <span className="text-gray-400 font-normal">(headline / name)</span>
+              </label>
               <input
                 type="text"
                 {...register('title', { required: 'Title is required' })}
@@ -150,12 +161,14 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Short description <span className="text-gray-400 font-normal">(schema.org description)</span>
+              </label>
               <textarea
                 {...register('description')}
                 rows={3}
                 className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border"
-                placeholder="Brief summary for blog cards..."
+                placeholder="Brief summary for blog cards and JSON-LD description..."
               />
             </div>
           </div>
@@ -179,7 +192,9 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Display Date *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Display date * <span className="text-gray-400 font-normal">(datePublished)</span>
+                </label>
                 <input
                   type="date"
                   {...register('display_date', { required: 'Date is required' })}
@@ -188,7 +203,9 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meta title <span className="text-gray-400 font-normal">(alternativeHeadline)</span>
+                </label>
                 <input
                   type="text"
                   {...register('meta_title')}
@@ -198,12 +215,107 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meta description <span className="text-gray-400 font-normal">(meta / JSON-LD)</span>
+                </label>
                 <textarea
                   {...register('meta_description')}
                   rows={2}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2px px-3 border text-sm"
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2 px-3 border text-sm"
                   placeholder="SEO description..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 className="text-base font-bold text-gray-900 border-b pb-3 mb-1">Schema.org (BlogPosting)</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Maps to JSON-LD <code className="text-xs bg-gray-100 px-1 rounded">BlogPosting</code> /{' '}
+              <code className="text-xs bg-gray-100 px-1 rounded">Article</code>. All optional.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Author name <span className="text-gray-400 font-normal">(author)</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('author_name')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="Jane Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Keywords <span className="text-gray-400 font-normal">(keywords)</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('keywords')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="comma, separated, terms"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Article section <span className="text-gray-400 font-normal">(articleSection)</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('article_section')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="Engineering, News…"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Language <span className="text-gray-400 font-normal">(inLanguage)</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('in_language')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="en-US"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Publisher name <span className="text-gray-400 font-normal">(publisher)</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('publisher_name')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Publisher logo URL <span className="text-gray-400 font-normal">(publisher.logo)</span>
+                </label>
+                <input
+                  type="url"
+                  {...register('publisher_logo_url')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="https://…"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Canonical URL <span className="text-gray-400 font-normal">(url)</span>
+                </label>
+                <input
+                  type="url"
+                  {...register('canonical_url')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="https://yoursite.com/blog/slug"
                 />
               </div>
             </div>
@@ -214,10 +326,10 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
               name="cover_image_url"
               control={control}
               render={({ field }) => (
-                <ImageUploader 
-                  value={field.value} 
-                  onChange={field.onChange} 
-                  label="Cover Image" 
+                <ImageUploader
+                  value={field.value}
+                  onChange={field.onChange}
+                  label="Cover image (image / og:image)"
                 />
               )}
             />
