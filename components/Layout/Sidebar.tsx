@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { LayoutDashboard, Link2, LogOut } from 'lucide-react';
 import axios from 'axios';
+import { setupUnlockHref } from '@/lib/auth';
 
 export default function Sidebar() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function Sidebar() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Add / Connect Site', href: '/sites/connect', icon: Link2 },
+    { name: 'Add / Connect Site', href: setupUnlockHref('/sites/connect'), icon: Link2 },
   ];
 
   return (
@@ -32,7 +33,13 @@ export default function Sidebar() {
         <div className="mt-8 flex-grow flex flex-col">
           <nav className="flex-1 px-4 pb-4 space-y-1">
             {navItems.map((item) => {
-              const isActive = router.pathname === item.href || (item.href !== '/' && router.pathname.startsWith(item.href));
+              const isActive =
+                item.name === 'Dashboard'
+                  ? router.pathname === '/'
+                  : item.name === 'Add / Connect Site'
+                    ? router.pathname === '/sites/connect' || router.pathname === '/setup-unlock'
+                    : router.pathname === item.href ||
+                      (item.href !== '/' && router.pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.name}

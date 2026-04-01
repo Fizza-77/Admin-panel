@@ -2,7 +2,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
@@ -12,14 +12,16 @@ interface ConnectSitePageProps {
   supabaseAnonKey: string;
 }
 
-export const getServerSideProps = requireAuthentication(async () => {
-  return {
-    props: {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-    },
-  };
-});
+export const getServerSideProps = requireAuthentication(
+  requireSetupPassword(async () => {
+    return {
+      props: {
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      },
+    };
+  }),
+);
 
 export default function ConnectSitePage({ supabaseUrl, supabaseAnonKey }: ConnectSitePageProps) {
   const router = useRouter();
@@ -98,6 +100,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
     try {
       const response = await fetch('/api/sites', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name.trim() || null,

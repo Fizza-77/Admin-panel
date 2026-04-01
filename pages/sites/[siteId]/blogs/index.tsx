@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, setupUnlockHref } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
@@ -67,6 +67,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
     try {
       const response = await fetch(`/api/sites/${site.id}/blogs/${pendingDelete.id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -101,13 +102,13 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href={`/sites/${site.id}/setup`}
+            href={setupUnlockHref(`/sites/${site.id}/setup`)}
             className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-4 rounded-lg border border-indigo-200 transition"
           >
             Setup
           </Link>
           <Link
-            href={`/sites/${site.id}/blogs/create`}
+            href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition shadow-sm"
           >
             <PlusCircle className="w-5 h-5" />

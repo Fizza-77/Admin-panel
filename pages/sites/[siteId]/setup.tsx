@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
@@ -16,23 +16,25 @@ interface SiteSetupPageProps {
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
 
-export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
-  const { siteId } = context.params as { siteId: string };
+export const getServerSideProps = requireAuthentication(
+  requireSetupPassword(async (context: GetServerSidePropsContext) => {
+    const { siteId } = context.params as { siteId: string };
 
-  const { data: site, error } = await supabase.from('sites').select('*').eq('id', siteId).single();
+    const { data: site, error } = await supabase.from('sites').select('*').eq('id', siteId).single();
 
-  if (error || !site) {
-    return { notFound: true };
-  }
+    if (error || !site) {
+      return { notFound: true };
+    }
 
-  return {
-    props: {
-      site,
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-    },
-  };
-});
+    return {
+      props: {
+        site,
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      },
+    };
+  }),
+);
 
 export default function SiteSetupPage({ site, supabaseUrl, supabaseAnonKey }: SiteSetupPageProps) {
   const [formData, setFormData] = useState({
@@ -91,6 +93,7 @@ const { data: blogs } = await supabase
     try {
       const response = await fetch(`/api/sites/${site.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

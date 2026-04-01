@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import jwt from 'jsonwebtoken';
+import { assertSetupGateAllowed, verifyAdminSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase/server';
 
 type SiteRecord = {
@@ -34,15 +34,12 @@ export default async function handler(
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const token = req.cookies.admin_session;
-  if (!token) {
-    return res.status(401).json({ message: 'Unauthorized' });
+  const auth = verifyAdminSession(req);
+  if (!auth.ok) {
+    return res.status(401).json({ message: auth.message });
   }
-
-  try {
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-  } catch {
-    return res.status(401).json({ message: 'Unauthorized' });
+  if (!assertSetupGateAllowed(req, res)) {
+    return;
   }
 
   const { siteId } = req.query;

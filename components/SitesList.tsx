@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, ExternalLink, Globe2 } from 'lucide-react';
+import { setupUnlockHref } from '@/lib/auth';
 import type { Site } from '@/types/site';
 
 interface SitesListProps {
@@ -17,7 +18,7 @@ export default function SitesList({ sites }: SitesListProps) {
           <p className="text-slate-500 mt-1">Manage each website with setup, blogs, and publishing actions.</p>
         </div>
         <Link
-          href="/sites/connect"
+          href={setupUnlockHref('/sites/connect')}
           className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-lg transition text-sm shadow-sm"
         >
           Add Site
@@ -60,13 +61,13 @@ export default function SitesList({ sites }: SitesListProps) {
                 </Link>
                 <div className="flex gap-3">
                   <Link
-                    href={`/sites/${site.id}/setup`}
+                    href={setupUnlockHref(`/sites/${site.id}/setup`)}
                     className="flex-1 text-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 font-medium py-2 px-4 rounded-lg border border-cyan-200 transition text-sm"
                   >
                     Setup
                   </Link>
                   <Link
-                    href={`/sites/${site.id}/blogs/create`}
+                    href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
                     className="flex-1 text-center bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg transition text-sm"
                   >
                     New blog
