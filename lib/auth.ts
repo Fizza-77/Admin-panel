@@ -1,6 +1,22 @@
+import type { NextApiRequest } from 'next';
 import { GetServerSidePropsContext } from 'next';
 import nookies from 'nookies';
 import jwt from 'jsonwebtoken';
+
+export function verifyAdminSession(
+  req: NextApiRequest,
+): { ok: true } | { ok: false; message: string } {
+  const token = req.cookies.admin_session;
+  if (!token) {
+    return { ok: false, message: 'Unauthorized' };
+  }
+  try {
+    jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    return { ok: true };
+  } catch {
+    return { ok: false, message: 'Unauthorized' };
+  }
+}
 
 export function requireAuthentication(gssp: any) {
   return async (context: GetServerSidePropsContext) => {

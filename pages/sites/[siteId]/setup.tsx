@@ -19,11 +19,7 @@ const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
   const { siteId } = context.params as { siteId: string };
 
-  const { data: site, error } = await supabase
-    .from('sites')
-    .select('id,name,domain,site_key')
-    .eq('id', siteId)
-    .single();
+  const { data: site, error } = await supabase.from('sites').select('*').eq('id', siteId).single();
 
   if (error || !site) {
     return { notFound: true };
@@ -43,6 +39,11 @@ export default function SiteSetupPage({ site, supabaseUrl, supabaseAnonKey }: Si
     name: site.name || '',
     domain: site.domain || '',
     site_key: site.site_key || '',
+    blog_page_meta_title: site.blog_page_meta_title || '',
+    blog_page_meta_description: site.blog_page_meta_description || '',
+    blog_page_headline: site.blog_page_headline || '',
+    blog_page_subheadline: site.blog_page_subheadline || '',
+    blog_empty_state_message: site.blog_empty_state_message || '',
   });
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -97,6 +98,11 @@ const { data: blogs } = await supabase
           name: formData.name.trim() || null,
           domain: formData.domain.trim(),
           site_key: normalizedSiteKey,
+          blog_page_meta_title: formData.blog_page_meta_title,
+          blog_page_meta_description: formData.blog_page_meta_description,
+          blog_page_headline: formData.blog_page_headline,
+          blog_page_subheadline: formData.blog_page_subheadline,
+          blog_empty_state_message: formData.blog_empty_state_message,
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -181,7 +187,68 @@ const { data: blogs } = await supabase
         </section>
 
         <section className="bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">B. Environment Variables</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">B. Public blog index page</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Used on your website for the blog listing route: title tag, meta description, hero copy, and the empty state
+            when there are no posts yet.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Page title (title tag)</label>
+              <input
+                type="text"
+                value={formData.blog_page_meta_title}
+                onChange={(e) => setFormData((prev) => ({ ...prev, blog_page_meta_title: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="The Make My Lesson Blog — …"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Meta description</label>
+              <textarea
+                value={formData.blog_page_meta_description}
+                onChange={(e) => setFormData((prev) => ({ ...prev, blog_page_meta_description: e.target.value }))}
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Headline</label>
+              <input
+                type="text"
+                value={formData.blog_page_headline}
+                onChange={(e) => setFormData((prev) => ({ ...prev, blog_page_headline: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Sub-headline</label>
+              <textarea
+                value={formData.blog_page_subheadline}
+                onChange={(e) => setFormData((prev) => ({ ...prev, blog_page_subheadline: e.target.value }))}
+                rows={2}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Empty state (no posts yet)</label>
+              <textarea
+                value={formData.blog_empty_state_message}
+                onChange={(e) => setFormData((prev) => ({ ...prev, blog_empty_state_message: e.target.value }))}
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            Save with section A (Site info) to persist these fields. Blog categories are shared across all sites and are
+            seeded once via the migration SQL under{' '}
+            <code className="font-mono bg-gray-100 px-1 rounded">supabase/migrations</code>.
+          </p>
+        </section>
+
+        <section className="bg-white border border-gray-200 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">C. Environment Variables</h2>
           <div className="space-y-3">
             {[
               { label: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseUrl },
@@ -210,7 +277,7 @@ const { data: blogs } = await supabase
         </section>
 
         <section className="bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">C. Integration Steps</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">D. Integration Steps</h2>
           <ol className="list-decimal list-inside text-sm text-gray-700 space-y-2">
             <li>Add environment variables to your website deployment and local `.env` file.</li>
             <li>Create a Supabase client using `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.</li>
@@ -220,7 +287,7 @@ const { data: blogs } = await supabase
 
         <section className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">D. Copy-Paste Snippet</h2>
+            <h2 className="text-lg font-semibold text-gray-900">E. Copy-Paste Snippet</h2>
             <button
               type="button"
               onClick={() => copyText(integrationSnippet, 'snippet')}
@@ -236,7 +303,7 @@ const { data: blogs } = await supabase
         </section>
 
         <section className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-amber-900 mb-2">E. Local Development Note</h2>
+          <h2 className="text-lg font-semibold text-amber-900 mb-2">F. Local Development Note</h2>
           <p className="text-sm text-amber-800">
             For localhost development, hardcode `site_key` in your frontend config. Domain-based lookup is no longer
             required in the admin flow.

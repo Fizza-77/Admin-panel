@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
-import { supabase } from '@/lib/supabase/client';
 import ImageUploader from './ImageUploader';
+import type { BlogCategory } from '@/types/blogCategory';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
   ssr: false,
@@ -16,9 +16,15 @@ interface BlogFormProps {
   initialData?: any;
   isEdit?: boolean;
   siteId: string;
+  categories?: BlogCategory[];
 }
 
-export default function BlogForm({ initialData = null, isEdit = false, siteId }: BlogFormProps) {
+export default function BlogForm({
+  initialData = null,
+  isEdit = false,
+  siteId,
+  categories = [],
+}: BlogFormProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [slugError, setSlugError] = useState('');
@@ -35,11 +41,11 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
       content: initialData?.content || '',
       author_name: initialData?.author_name || '',
       keywords: initialData?.keywords ?? initialData?.tags ?? '',
-      article_section: initialData?.article_section || '',
       in_language: initialData?.in_language || '',
       publisher_name: initialData?.publisher_name || '',
       publisher_logo_url: initialData?.publisher_logo_url || '',
       canonical_url: initialData?.canonical_url || '',
+      category_id: initialData?.category_id || '',
     },
   });
 
@@ -58,12 +64,22 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
   }, [titleWatcher, isEdit, slugWatcher, setValue]);
 
   const checkSlugUnique = async (slug: string) => {
-    let query = supabase.from('blogs').select('id').eq('site_id', siteId).eq('slug', slug);
+    const params = new URLSearchParams({ slug });
     if (isEdit && initialData?.id) {
-      query = query.neq('id', initialData.id);
+      params.set('excludeId', initialData.id);
     }
-    const { data } = await query.single();
-    return !data; // Return true if unique (not found)
+    const response = await fetch(`/api/sites/${siteId}/blogs?${params}`, {
+      credentials: 'include',
+    });
+    if (response.status === 401) {
+      throw new Error('Unauthorized');
+    }
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to validate slug');
+    }
+    const result = await response.json();
+    return result.available === true;
   };
 
   const onSubmit = async (data: any) => {
@@ -78,32 +94,45 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
         return;
       }
 
-      const payload = {
-        site_id: siteId,
+      const selectedCategory = categories.find((c) => c.id === data.category_id);
+
+      const body = {
         title: data.title,
         slug: data.slug,
         meta_title: data.meta_title,
         description: data.description,
         meta_description: data.meta_description,
-        display_date: new Date(data.display_date).toISOString(),
+        display_date: data.display_date,
         cover_image_url: data.cover_image_url,
         content: data.content,
         author_name: data.author_name || null,
         keywords: data.keywords || null,
-        article_section: data.article_section || null,
+        article_section: selectedCategory?.name ?? null,
         in_language: data.in_language || null,
         publisher_name: data.publisher_name || null,
         publisher_logo_url: data.publisher_logo_url || null,
         canonical_url: data.canonical_url || null,
-        updated_at: new Date().toISOString(),
+        category_id: data.category_id || null,
       };
 
-      if (isEdit) {
-        const { error } = await supabase.from('blogs').update(payload).eq('id', initialData.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('blogs').insert([payload]);
-        if (error) throw error;
+      const saveResponse = await fetch(
+        isEdit ? `/api/sites/${siteId}/blogs/${initialData.id}` : `/api/sites/${siteId}/blogs`,
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (!saveResponse.ok) {
+        const err = await saveResponse.json().catch(() => ({}));
+        if (saveResponse.status === 409) {
+          setSlugError(err.message || 'This slug is already in use for this site.');
+          setIsSaving(false);
+          return;
+        }
+        throw new Error(err.message || 'Failed to save blog post');
       }
 
       router.push(`/sites/${siteId}/blogs`);
@@ -262,14 +291,24 @@ export default function BlogForm({ initialData = null, isEdit = false, siteId }:
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Article section <span className="text-gray-400 font-normal">(articleSection)</span>
+                  Category <span className="text-gray-400 font-normal">(articleSection)</span>
                 </label>
-                <input
-                  type="text"
-                  {...register('article_section')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
-                  placeholder="Engineering, News…"
-                />
+                <select
+                  {...register('category_id')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white"
+                >
+                  <option value="">Select a category (optional)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {categories.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    No categories in the database yet. Run the SQL migration to seed shared categories, then reload.
+                  </p>
+                )}
               </div>
 
               <div>

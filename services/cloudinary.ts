@@ -12,11 +12,9 @@ export const uploadImageToServer = async (file: File): Promise<string> => {
   formData.append('file', file);
 
   try {
-    const response = await axios.post('/api/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Do not set Content-Type: the browser must send multipart/form-data with a boundary.
+    // A bare "multipart/form-data" header breaks parsing on the server (formidable gets no file).
+    const response = await axios.post('/api/upload', formData);
 
     return response.data.url;
   } catch (error) {

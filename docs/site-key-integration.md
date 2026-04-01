@@ -72,8 +72,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 ```
 
+## Row Level Security (RLS)
+
+If you **enable RLS** on `sites` or `blogs`, the **anon** key has **no access** until you add policies. The website uses `NEXT_PUBLIC_SUPABASE_ANON_KEY`, so you must allow the reads your pages need.
+
+### Option A — Policies (typical for public sites)
+
+Run in the Supabase SQL editor (adjust names if you already have policies):
+
+```sql
+-- Let anonymous clients resolve site_key → id (required for getSiteIdByKey)
+CREATE POLICY "Public can read sites for integration"
+ON public.sites
+FOR SELECT
+TO anon
+USING (true);
+
+-- Let anonymous clients read blog posts for listing/detail pages
+CREATE POLICY "Public can read blogs"
+ON public.blogs
+FOR SELECT
+TO anon
+USING (true);
+```
+
+`USING (true)` on `sites` exposes each row’s non-secret columns to anyone with the project URL and anon key—usually acceptable for `id`, `site_key`, name. If you need stricter isolation between tenants, tighten these policies (e.g. only specific columns via a view, or server-only reads with the service role).
+
+### Option B — Skip the `sites` lookup (no `sites` SELECT for anon)
+
+If you do **not** want anon to read `sites`, set the UUID once in the website’s env (copy `id` from the **Sites** row in Supabase or from the admin app):
+
+```env
+SITE_ID=00000000-0000-0000-0000-000000000000
+# or, if your app reads it on the client:
+NEXT_PUBLIC_SITE_ID=00000000-0000-0000-0000-000000000000
+```
+
+Your `lib/blogs.ts` can use this and **not** query `sites` at runtime. You still need a **SELECT** policy on `blogs` for anon (unless all blog reads go through a server route using the **service role**).
+
 ## Notes
 
 - Do not resolve sites by domain inside app logic anymore.
 - Keep `domain` as optional metadata/mapping only.
 - For localhost/staging/preview, keep `SITE_KEY` stable per website project.
+- After enabling RLS, if you see “Failed to resolve site_id for site_key … add a SELECT policy”, apply Option A or B above.
