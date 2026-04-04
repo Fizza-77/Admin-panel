@@ -186,15 +186,15 @@ export default function BlogForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl shadow-sm tracking-wide sticky top-2 sm:top-0 z-10 border border-gray-200 border-b">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8 w-full max-w-5xl">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl shadow-sm tracking-wide sticky top-0 z-10 border border-gray-200 border-b">
         <div className="flex items-center gap-4">
           <h1 className="text-lg sm:text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
         </div>
         <button
           type="submit"
           disabled={isSaving}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
+          className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
         >
           {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
           {isSaving ? 'Saving...' : 'Save Post'}

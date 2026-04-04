@@ -41,9 +41,9 @@ export default function Login() {
       <Head>
         <title>Login - Blog Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 tracking-tight">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md">
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
             Blog Admin Panel
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
@@ -51,8 +51,8 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-6 sm:py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
+        <div className="mt-6 sm:mt-8 w-full max-w-md">
+          <div className="bg-white py-6 sm:py-8 px-4 shadow rounded-xl sm:rounded-lg sm:px-10 border border-gray-100">
             <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
               {error && (
                 <div className="bg-red-50 border-l-4 border-red-500 p-4">
@@ -75,7 +75,7 @@ export default function Login() {
                     type="email"
                     autoComplete="username"
                     {...register('email')}
-                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
+                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 text-sm border-gray-300 rounded-md py-2.5 px-3 border"
                     placeholder="admin@example.com"
                   />
                 </div>
@@ -93,7 +93,7 @@ export default function Login() {
                     type="password"
                     autoComplete="current-password"
                     {...register('password')}
-                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
+                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 text-sm border-gray-300 rounded-md py-2.5 px-3 border"
                     placeholder="••••••••"
                   />
                 </div>
@@ -104,7 +104,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full min-h-11 flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>

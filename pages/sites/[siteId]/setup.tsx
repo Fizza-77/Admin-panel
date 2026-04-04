@@ -136,19 +136,19 @@ const { data: blogs } = await supabase
         <div className="grid w-full sm:w-auto grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
           <Link
             href={`/sites/${site.id}/blogs`}
-            className="text-center bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-2 sm:px-4 rounded-lg border border-gray-200 transition text-xs sm:text-sm"
+            className="text-center min-h-10 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-2 sm:px-4 rounded-lg border border-gray-200 transition text-xs sm:text-sm"
           >
             Blogs
           </Link>
           <Link
             href={setupUnlockHref(`/sites/${site.id}/categories`)}
-            className="text-center bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-2 sm:px-4 rounded-lg border border-teal-200 transition text-xs sm:text-sm"
+            className="text-center min-h-10 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-2 sm:px-4 rounded-lg border border-teal-200 transition text-xs sm:text-sm"
           >
             Categories
           </Link>
           <Link
             href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
-            className="text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-2 sm:px-4 rounded-lg transition text-xs sm:text-sm"
+            className="text-center min-h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-2 sm:px-4 rounded-lg transition text-xs sm:text-sm"
           >
             New Blog
           </Link>
@@ -302,13 +302,13 @@ const { data: blogs } = await supabase
             <button
               type="button"
               onClick={() => copyText(integrationSnippet, 'snippet')}
-              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
             >
               {copied === 'snippet' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copied === 'snippet' ? 'Copied' : 'Copy snippet'}
             </button>
           </div>
-          <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">
+          <pre className="bg-gray-900 text-gray-100 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto">
             <code>{integrationSnippet}</code>
           </pre>
         </section>

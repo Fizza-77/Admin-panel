@@ -3,6 +3,18 @@ import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  // ✅ CORS HEADERS (MUST BE FIRST)
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173'); // change in production
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // ✅ HANDLE PREFLIGHT
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // ❌ Reject non-POST AFTER handling OPTIONS
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
@@ -17,20 +29,20 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (email === adminEmail && password === adminPassword) {
-    // Sign JWT
     const token = jwt.sign(
-      { email, role: 'admin' }, 
-      process.env.JWT_SECRET || 'fallback_secret', 
+      { email, role: 'admin' },
+      process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '7d' }
     );
 
-  res.setHeader('Set-Cookie', serialize('admin_session', token, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production', // OK in production
-  sameSite: 'lax', // allows cookie to be sent on first-party requests
-  maxAge: 60 * 60 * 24 * 7,
-  path: '/'
-}));
+    // ✅ FIXED COOKIE
+    res.setHeader('Set-Cookie', serialize('admin_session', token, {
+      httpOnly: true,
+      secure: true,                // 🔥 REQUIRED for SameSite=None
+      sameSite: 'none',            // 🔥 REQUIRED for cross-origin
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    }));
 
     return res.status(200).json({ success: true });
   }

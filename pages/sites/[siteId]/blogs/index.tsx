@@ -117,7 +117,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
         </div>
       </div>
 
-      <div className="mb-6 relative w-full sm:max-w-md">
+      <div className="mb-6 relative w-full md:max-w-md">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-gray-400" />
         </div>
@@ -136,7 +136,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
       )}
 
       {blogs.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-gray-200 border-dashed">
+        <div className="text-center py-14 sm:py-20 bg-white rounded-xl border border-gray-200 border-dashed">
           <FileText className="mx-auto h-12 w-12 text-gray-300 mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No blogs found</h3>
           <p className="mt-1 text-gray-500 sm:max-w-md mx-auto">
@@ -177,18 +177,18 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                 <p className="text-sm text-gray-600 line-clamp-3 mb-4 flex-1">
                   {blog.description || 'No description provided.'}
                 </p>
-                <div className="flex items-center gap-2 pt-4 border-t border-gray-100 mt-auto">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-4 border-t border-gray-100 mt-auto">
                   <a
                     href={`https://${site.domain}/blog/${blog.slug}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-2 sm:px-3 rounded-lg border border-gray-200 transition text-xs sm:text-sm"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2.5 px-3 rounded-lg border border-gray-200 transition text-sm"
                   >
                     <ExternalLink className="w-4 h-4" /> View
                   </a>
                   <Link
                     href={`/sites/${site.id}/blogs/edit/${blog.id}`}
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 px-2 sm:px-3 rounded-lg border border-blue-200 transition text-xs sm:text-sm"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2.5 px-3 rounded-lg border border-blue-200 transition text-sm"
                   >
                     <Edit2 className="w-4 h-4" /> Edit
                   </Link>
@@ -199,7 +199,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                       setPendingDelete({ id: blog.id, title: blog.title });
                     }}
                     disabled={deletingBlogId === blog.id}
-                    className="flex items-center justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto flex items-center justify-center p-2.5 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                     title={deletingBlogId === blog.id ? 'Deleting...' : 'Delete blog'}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -218,10 +218,10 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
               You are about to delete <span className="font-medium text-gray-900">"{pendingDelete.title}"</span>.
               This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
               <button
                 type="button"
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                 onClick={() => setPendingDelete(null)}
                 disabled={deletingBlogId === pendingDelete.id}
               >
@@ -229,7 +229,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
               </button>
               <button
                 type="button"
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 onClick={handleDelete}
                 disabled={deletingBlogId === pendingDelete.id}
               >

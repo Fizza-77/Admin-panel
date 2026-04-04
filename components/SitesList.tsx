@@ -12,14 +12,14 @@ export default function SitesList({ sites }: SitesListProps) {
 
   return (
     <>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Connected Websites</h1>
-          <p className="text-slate-500 mt-1">Manage each website with setup, blogs, and publishing actions.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Connected Websites</h1>
+          <p className="text-sm sm:text-base text-slate-500 mt-1">Manage each website with setup, blogs, and publishing actions.</p>
         </div>
         <Link
           href={setupUnlockHref('/sites/connect')}
-          className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-lg transition text-sm shadow-sm"
+          className="w-full sm:w-auto justify-center inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-4 rounded-lg transition text-sm shadow-sm"
         >
           Add Site
           <ArrowRight className="w-4 h-4" />
@@ -27,7 +27,7 @@ export default function SitesList({ sites }: SitesListProps) {
       </div>
 
       {connectedSites.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 border-dashed py-16 px-6 text-center shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 border-dashed py-12 sm:py-16 px-5 sm:px-6 text-center shadow-sm">
           <Globe2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="text-slate-700 mb-2 font-semibold">No connected sites yet</p>
           <p className="text-slate-500 text-sm">
@@ -59,7 +59,7 @@ export default function SitesList({ sites }: SitesListProps) {
                 >
                   View blogs
                 </Link>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <Link
                     href={setupUnlockHref(`/sites/${site.id}/setup`)}
                     className="flex-1 text-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 font-medium py-2 px-4 rounded-lg border border-cyan-200 transition text-sm"

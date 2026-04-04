@@ -33,14 +33,14 @@ export default function Sidebar() {
   return (
     <>
       <div className="md:hidden border-b border-slate-200 bg-white px-3 py-2">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap items-center gap-2">
           {navItems.map((item) => {
             const isActive = isActiveItem(item);
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-cyan-50 text-cyan-800 border-cyan-200'
                     : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -53,7 +53,7 @@ export default function Sidebar() {
           })}
           <button
             onClick={handleLogout}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
           >
             <LogOut className="h-3.5 w-3.5" />
             Logout

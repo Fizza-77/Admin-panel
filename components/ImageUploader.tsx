@@ -55,12 +55,12 @@ export default function ImageUploader({ value, onChange, label = 'Cover Image' }
       
       {value ? (
         <div className="relative rounded-xl overflow-hidden border border-gray-200 group">
-          <img src={value} alt="Uploaded preview" className="w-full h-48 object-cover" />
+          <img src={value} alt="Uploaded preview" className="w-full h-36 sm:h-48 object-cover" />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <button 
               type="button"
               onClick={() => onChange('')}
-              className="bg-white text-red-600 px-4 py-2 rounded-lg font-medium shadow flex items-center gap-2 hover:bg-gray-50 transition"
+              className="bg-white text-red-600 px-4 py-2.5 rounded-lg font-medium shadow flex items-center gap-2 hover:bg-gray-50 transition"
             >
               <X className="w-4 h-4" /> Remove Image
             </button>
@@ -71,7 +71,7 @@ export default function ImageUploader({ value, onChange, label = 'Cover Image' }
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
-          className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors ${
+          className={`border-2 border-dashed rounded-xl p-5 sm:p-8 flex flex-col items-center justify-center text-center transition-colors ${
             isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
           }`}
         >

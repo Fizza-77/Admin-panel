@@ -181,7 +181,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
 
         <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">2) Add These Env Vars To New Website</h2>
-          <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">
+          <pre className="bg-gray-900 text-gray-100 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto">
             <code>{`NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl || 'https://your-project.supabase.co'}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseAnonKey || 'your-anon-key'}
 SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
@@ -196,7 +196,7 @@ SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
                 'env',
               )
             }
-            className="mt-3 text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
+            className="mt-3 w-full sm:w-auto justify-center text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
           >
             {copied === 'env' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             {copied === 'env' ? 'Copied' : 'Copy env block'}
@@ -219,13 +219,13 @@ SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
             <button
               type="button"
               onClick={() => copyText(integrationSnippet, 'fetch')}
-              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
             >
               {copied === 'fetch' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copied === 'fetch' ? 'Copied' : 'Copy snippet'}
             </button>
           </div>
-          <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">
+          <pre className="bg-gray-900 text-gray-100 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto">
             <code>{integrationSnippet}</code>
           </pre>
         </section>
@@ -236,13 +236,13 @@ SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
             <button
               type="button"
               onClick={() => copyText(helperFunctionsSnippet, 'helpers')}
-              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
             >
               {copied === 'helpers' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copied === 'helpers' ? 'Copied' : 'Copy helpers'}
             </button>
           </div>
-          <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">
+          <pre className="bg-gray-900 text-gray-100 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto">
             <code>{helperFunctionsSnippet}</code>
           </pre>
         </section>

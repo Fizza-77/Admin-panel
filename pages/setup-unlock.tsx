@@ -46,7 +46,7 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnloc
       <Head>
         <title>Setup password - Blog Admin</title>
       </Head>
-      <div className="max-w-md mx-auto mt-6 sm:mt-12 px-1 sm:px-0">
+      <div className="w-full max-w-md mx-auto min-h-[70vh] flex flex-col justify-center px-1 sm:px-0">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Additional password required</h1>
         <p className="text-sm text-gray-600 mt-2">
           Enter the setup password to manage connected sites, site setup, and new blog posts. This is configured with{' '}
@@ -66,7 +66,7 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnloc
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 border border-gray-300 rounded-lg py-2.5 text-sm"
+                className="block w-full pl-10 border border-gray-300 rounded-lg py-3 text-sm"
                 placeholder="••••••••"
                 autoComplete="current-password"
                 required
@@ -76,7 +76,7 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnloc
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm disabled:opacity-50 flex justify-center items-center gap-2"
+            className="w-full min-h-11 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm disabled:opacity-50 flex justify-center items-center gap-2"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
             Continue
