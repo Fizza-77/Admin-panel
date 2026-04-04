@@ -5,11 +5,14 @@ import axios from 'axios';
 import { Lock, Loader2 } from 'lucide-react';
 import { requireAuthentication, resolveSetupUnlockGate } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
-import type { GetServerSidePropsContext } from 'next';
+import type { GetServerSideProps, GetServerSidePropsContext } from 'next';
 
-export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
-  return resolveSetupUnlockGate(context);
-});
+// ✅ Fix: explicitly type the exported getServerSideProps
+export const getServerSideProps: GetServerSideProps = requireAuthentication(
+  async (context: GetServerSidePropsContext) => {
+    return resolveSetupUnlockGate(context);
+  }
+);
 
 interface SetupUnlockPageProps {
   returnUrl?: string;
@@ -18,8 +21,7 @@ interface SetupUnlockPageProps {
 export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnlockPageProps) {
   const router = useRouter();
   const returnUrl =
-    returnUrlProp ??
-    (typeof router.query.returnUrl === 'string' ? router.query.returnUrl : '/');
+    returnUrlProp ?? (typeof router.query.returnUrl === 'string' ? router.query.returnUrl : '/');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
