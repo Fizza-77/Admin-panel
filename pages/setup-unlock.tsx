@@ -5,8 +5,9 @@ import axios from 'axios';
 import { Lock, Loader2 } from 'lucide-react';
 import { requireAuthentication, resolveSetupUnlockGate } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
+import type { GetServerSidePropsContext } from 'next';
 
-export const getServerSideProps = requireAuthentication(async (context) => {
+export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
   return resolveSetupUnlockGate(context);
 });
 
