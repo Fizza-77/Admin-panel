@@ -17,6 +17,7 @@ export type SiteBlogPageCopy = {
 
 export type BlogCategoryRow = {
   id: string;
+  site_id: string;
   slug: string;
   name: string;
   description: string | null;
@@ -75,11 +76,15 @@ export async function getSiteBlogPageCopy(
   return data as SiteBlogPageCopy;
 }
 
-/** Shared category taxonomy (same rows for every site) */
-export async function getBlogCategories(supabase: SupabaseClient): Promise<BlogCategoryRow[]> {
+/** Categories for one connected site only */
+export async function getBlogCategories(
+  supabase: SupabaseClient,
+  siteId: string,
+): Promise<BlogCategoryRow[]> {
   const { data, error } = await supabase
     .from('blog_categories')
-    .select('id,slug,name,description,sort_order')
+    .select('id,site_id,slug,name,description,sort_order')
+    .eq('site_id', siteId)
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
@@ -98,7 +103,7 @@ export async function getBlogsForSite(supabase: SupabaseClient, siteId: string):
       .select('id,site_id,title,slug,description,meta_description,display_date,cover_image_url,category_id')
       .eq('site_id', siteId)
       .order('display_date', { ascending: false }),
-    supabase.from('blog_categories').select('id,slug,name,description'),
+    supabase.from('blog_categories').select('id,site_id,slug,name,description').eq('site_id', siteId),
   ]);
 
   if (blogsError) throw blogsError;
@@ -116,7 +121,7 @@ export async function getBlogIndexPageData(supabase: SupabaseClient, siteKey: st
   const siteId = await getSiteIdByKey(supabase, siteKey);
   const [copy, categories, blogs] = await Promise.all([
     getSiteBlogPageCopy(supabase, siteId),
-    getBlogCategories(supabase),
+    getBlogCategories(supabase, siteId),
     getBlogsForSite(supabase, siteId),
   ]);
   return { siteId, copy, categories, blogs };

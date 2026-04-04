@@ -69,6 +69,21 @@ export default async function handler(
     return res.status(500).json({ message: 'Failed to create site' });
   }
 
+  const defaultCategories = [
+    { slug: 'lesson-planning', name: 'Lesson Planning', description: 'Practical guides and strategies for teachers', sort_order: 1 },
+    { slug: 'curriculum-guides', name: 'Curriculum Guides', description: 'Curriculum-specific resources by system and country', sort_order: 2 },
+    { slug: 'ai-in-education', name: 'AI in Education', description: 'Honest, research-grounded perspectives on AI in teaching', sort_order: 3 },
+    { slug: 'teacher-wellbeing', name: 'Teacher Wellbeing', description: 'Workload, time management, and professional sustainability', sort_order: 4 },
+    { slug: 'edtech', name: 'EdTech', description: 'Tools, trends, and what actually works in classrooms', sort_order: 5 },
+  ];
+
+  const { error: seedError } = await supabase.from('blog_categories').insert(
+    defaultCategories.map((c) => ({ ...c, site_id: data.id })),
+  );
+  if (seedError) {
+    console.warn('Default categories not seeded (run migrations or add in Categories UI):', seedError.message);
+  }
+
   return res.status(200).json({
     success: true,
     site: data,

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
+import { requireAuthentication, requireSetupPassword, setupUnlockHref } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
@@ -133,7 +133,7 @@ const { data: blogs } = await supabase
           <h1 className="text-3xl font-bold text-slate-900">Site Setup & Integration</h1>
           <p className="text-slate-500 mt-1">Configure this tenant and copy the integration details.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Link
             href={`/sites/${site.id}/blogs`}
             className="bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-200 transition text-sm"
@@ -141,7 +141,13 @@ const { data: blogs } = await supabase
             Blogs
           </Link>
           <Link
-            href={`/sites/${site.id}/blogs/create`}
+            href={setupUnlockHref(`/sites/${site.id}/categories`)}
+            className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-4 rounded-lg border border-teal-200 transition text-sm"
+          >
+            Categories
+          </Link>
+          <Link
+            href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm"
           >
             New Blog
@@ -244,9 +250,11 @@ const { data: blogs } = await supabase
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            Save with section A (Site info) to persist these fields. Blog categories are shared across all sites and are
-            seeded once via the migration SQL under{' '}
-            <code className="font-mono bg-gray-100 px-1 rounded">supabase/migrations</code>.
+            Save with section A (Site info) to persist these fields. Manage categories per website from the{' '}
+            <Link href={setupUnlockHref(`/sites/${site.id}/categories`)} className="text-cyan-700 hover:underline">
+              Categories
+            </Link>{' '}
+            page (or seed via SQL per <code className="font-mono bg-gray-100 px-1 rounded">site_id</code>).
           </p>
         </section>
 

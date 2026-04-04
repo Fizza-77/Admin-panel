@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import ImageUploader from './ImageUploader';
-import type { BlogCategory } from '@/types/blogCategory';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
   ssr: false,
@@ -12,22 +11,25 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
 
 import { Loader2, Save } from 'lucide-react';
 
+type CategoryOption = { id: string; name: string };
+
 interface BlogFormProps {
   initialData?: any;
   isEdit?: boolean;
   siteId: string;
-  categories?: BlogCategory[];
 }
 
 export default function BlogForm({
   initialData = null,
   isEdit = false,
   siteId,
-  categories = [],
 }: BlogFormProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [slugError, setSlugError] = useState('');
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const prevSiteIdRef = useRef<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
@@ -51,6 +53,45 @@ export default function BlogForm({
 
   const titleWatcher = watch('title');
   const slugWatcher = watch('slug');
+
+  useEffect(() => {
+    if (prevSiteIdRef.current !== null && prevSiteIdRef.current !== siteId) {
+      setValue('category_id', '');
+    }
+    prevSiteIdRef.current = siteId;
+  }, [siteId, setValue]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!siteId) {
+      setCategories([]);
+      setCategoriesLoading(false);
+      return;
+    }
+    setCategoriesLoading(true);
+    (async () => {
+      const response = await fetch(`/api/sites/${siteId}/blog-categories`, {
+        credentials: 'include',
+      });
+      if (cancelled) return;
+      setCategoriesLoading(false);
+      if (!response.ok) {
+        setCategories([]);
+        return;
+      }
+      const body = await response.json().catch(() => ({}));
+      const list = (body.categories ?? []) as { id: string; name: string }[];
+      setCategories(
+        list.map((c) => ({
+          id: c.id,
+          name: c.name,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId]);
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -188,6 +229,32 @@ export default function BlogForm({
               />
               {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message as string}</p>}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <select
+                {...register('category_id')}
+                disabled={!siteId || categoriesLoading}
+                className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Select category</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {categoriesLoading && (
+                <p className="mt-1 text-xs text-gray-500">Loading categories…</p>
+              )}
+              {!categoriesLoading && categories.length === 0 && (
+                <p className="mt-1 text-xs text-amber-800">
+                  No categories configured for this site.
+                </p>
+              )}
+            </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -287,28 +354,6 @@ export default function BlogForm({
                   className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
                   placeholder="comma, separated, terms"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category <span className="text-gray-400 font-normal">(articleSection)</span>
-                </label>
-                <select
-                  {...register('category_id')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white"
-                >
-                  <option value="">Select a category (optional)</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {categories.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-700">
-                    No categories in the database yet. Run the SQL migration to seed shared categories, then reload.
-                  </p>
-                )}
               </div>
 
               <div>

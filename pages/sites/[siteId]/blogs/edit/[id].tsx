@@ -6,7 +6,6 @@ import BlogForm from '@/components/BlogForm';
 import { supabase } from '@/lib/supabase/server';
 import { Loader2 } from 'lucide-react';
 import type { Site } from '@/types/site';
-import type { BlogCategory } from '@/types/blogCategory';
 
 type Blog = {
   id: string;
@@ -19,7 +18,6 @@ type Blog = {
 interface EditSiteBlogPageProps {
   site: Site;
   blog: Blog;
-  categories: BlogCategory[];
 }
 
 export const getServerSideProps = requireAuthentication(
@@ -51,22 +49,16 @@ export const getServerSideProps = requireAuthentication(
       };
     }
 
-    const { data: categories } = await supabase
-      .from('blog_categories')
-      .select('id,slug,name,description,sort_order')
-      .order('sort_order', { ascending: true });
-
     return {
       props: {
         site,
         blog,
-        categories: categories ?? [],
       },
     };
   }),
 );
 
-export default function EditSiteBlog({ site, blog, categories }: EditSiteBlogPageProps) {
+export default function EditSiteBlog({ site, blog }: EditSiteBlogPageProps) {
   if (!blog) {
     return (
       <AdminLayout>
@@ -82,7 +74,7 @@ export default function EditSiteBlog({ site, blog, categories }: EditSiteBlogPag
       <Head>
         <title>Edit {blog.title} - {site.name || site.domain || site.site_key}</title>
       </Head>
-      <BlogForm initialData={blog} isEdit={true} siteId={site.id} categories={categories} />
+      <BlogForm initialData={blog} isEdit={true} siteId={site.id} />
     </AdminLayout>
   );
 }
