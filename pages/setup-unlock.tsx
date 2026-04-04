@@ -43,13 +43,13 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnloc
       <Head>
         <title>Setup password - Blog Admin</title>
       </Head>
-      <div className="max-w-md mx-auto mt-12">
-        <h1 className="text-2xl font-bold text-gray-900">Additional password required</h1>
+      <div className="max-w-md mx-auto mt-6 sm:mt-12 px-1 sm:px-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Additional password required</h1>
         <p className="text-sm text-gray-600 mt-2">
           Enter the setup password to manage connected sites, site setup, and new blog posts. This is configured with{' '}
           <code className="text-xs bg-gray-100 px-1 rounded">ADMIN_SETUP_PASSWORD</code> on the server.
         </p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <form onSubmit={onSubmit} className="mt-6 space-y-4 bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-800 text-sm px-3 py-2 rounded-lg">{error}</div>
           )}

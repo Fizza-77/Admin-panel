@@ -91,25 +91,25 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
         <title>Blogs - {site.name || site.domain || site.site_key} | Skyen Blog Admin</title>
       </Head>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Website</p>
-          <h1 className="text-2xl font-bold text-gray-900">{site.name || site.domain || site.site_key}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{site.name || site.domain || site.site_key}</h1>
           <p className="text-gray-500 mt-1">
             Manage blog posts for{' '}
             <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{site.site_key}</span>.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-3">
           <Link
             href={setupUnlockHref(`/sites/${site.id}/setup`)}
-            className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-4 rounded-lg border border-indigo-200 transition"
+            className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-3 sm:px-4 rounded-lg border border-indigo-200 transition text-sm"
           >
             Setup
           </Link>
           <Link
             href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition shadow-sm"
+            className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 sm:px-4 rounded-lg transition shadow-sm text-sm"
           >
             <PlusCircle className="w-5 h-5" />
             Add Blog
@@ -117,7 +117,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
         </div>
       </div>
 
-      <div className="mb-6 relative max-w-md">
+      <div className="mb-6 relative w-full sm:max-w-md">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-gray-400" />
         </div>
@@ -144,7 +144,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {blogs.map((blog) => (
             <div
               key={blog.id}
@@ -163,7 +163,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                   </div>
                 )}
               </div>
-              <div className="p-5 flex-1 flex flex-col">
+              <div className="p-4 sm:p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="text-lg font-bold text-gray-900 line-clamp-2" title={blog.title}>
                     {blog.title}
@@ -182,13 +182,13 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                     href={`https://${site.domain}/blog/${blog.slug}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-3 rounded-lg border border-gray-200 transition text-sm"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-2 sm:px-3 rounded-lg border border-gray-200 transition text-xs sm:text-sm"
                   >
                     <ExternalLink className="w-4 h-4" /> View
                   </a>
                   <Link
                     href={`/sites/${site.id}/blogs/edit/${blog.id}`}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 px-3 rounded-lg border border-blue-200 transition text-sm"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 px-2 sm:px-3 rounded-lg border border-blue-200 transition text-xs sm:text-sm"
                   >
                     <Edit2 className="w-4 h-4" /> Edit
                   </Link>

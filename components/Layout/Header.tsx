@@ -17,24 +17,24 @@ export default function Header() {
 
   return (
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 z-10">
-      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 min-h-16 py-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start sm:items-center justify-between px-3 sm:px-6 lg:px-8 min-h-16 py-3 gap-3">
+        <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
           {!onRoot && (
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </button>
           )}
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Skyen Blog Admin</p>
-            <p className="text-sm font-semibold text-slate-800">{pageLabel || 'Dashboard'}</p>
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.16em] text-slate-400 truncate">Skyen Blog Admin</p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{pageLabel || 'Dashboard'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Link
             href="/"
             className="hidden sm:inline-flex rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -43,9 +43,9 @@ export default function Header() {
           </Link>
           <button className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none">
               <span className="sr-only">View notifications</span>
-              <Bell className="h-6 w-6" aria-hidden="true" />
+              <Bell className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
           </button>
-          <span className="inline-block h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-bold">
+          <span className="inline-block h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-bold text-xs sm:text-sm">
             A
           </span>
         </div>

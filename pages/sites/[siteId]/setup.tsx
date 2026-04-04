@@ -128,27 +128,27 @@ const { data: blogs } = await supabase
         <title>Setup - {site.name || site.site_key} | Skyen Blog Admin</title>
       </Head>
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Site Setup & Integration</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Site Setup & Integration</h1>
           <p className="text-slate-500 mt-1">Configure this tenant and copy the integration details.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid w-full sm:w-auto grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
           <Link
             href={`/sites/${site.id}/blogs`}
-            className="bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-200 transition text-sm"
+            className="text-center bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-2 sm:px-4 rounded-lg border border-gray-200 transition text-xs sm:text-sm"
           >
             Blogs
           </Link>
           <Link
             href={setupUnlockHref(`/sites/${site.id}/categories`)}
-            className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-4 rounded-lg border border-teal-200 transition text-sm"
+            className="text-center bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-2 sm:px-4 rounded-lg border border-teal-200 transition text-xs sm:text-sm"
           >
             Categories
           </Link>
           <Link
             href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm"
+            className="text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-2 sm:px-4 rounded-lg transition text-xs sm:text-sm"
           >
             New Blog
           </Link>
@@ -156,7 +156,7 @@ const { data: blogs } = await supabase
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <section className="bg-white border border-gray-200 rounded-xl p-6">
+        <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">A. Site Info</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
@@ -182,11 +182,11 @@ const { data: blogs } = await supabase
             />
           </div>
           <p className="text-xs text-gray-500 mt-3">`site_key` must be unique and uses lowercase letters, numbers, and hyphens.</p>
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <button
               onClick={onSave}
               disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm disabled:opacity-50"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save changes'}
             </button>
@@ -195,7 +195,7 @@ const { data: blogs } = await supabase
           </div>
         </section>
 
-        <section className="bg-white border border-gray-200 rounded-xl p-6">
+        <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">B. Public blog index page</h2>
           <p className="text-sm text-gray-500 mb-4">
             Used on your website for the blog listing route: title tag, meta description, hero copy, and the empty state
@@ -258,7 +258,7 @@ const { data: blogs } = await supabase
           </p>
         </section>
 
-        <section className="bg-white border border-gray-200 rounded-xl p-6">
+        <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">C. Environment Variables</h2>
           <div className="space-y-3">
             {[
@@ -266,7 +266,7 @@ const { data: blogs } = await supabase
               { label: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseAnonKey },
               { label: 'SITE_KEY', value: formData.site_key || site.site_key },
             ].map((item) => (
-              <div key={item.label} className="border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-4">
+              <div key={item.label} className="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div className="min-w-0">
                   <p className="text-xs text-gray-500">{item.label}</p>
                   <p className="font-mono text-xs text-gray-800 truncate">{item.value || 'Not configured'}</p>
@@ -274,7 +274,7 @@ const { data: blogs } = await supabase
                 <button
                   type="button"
                   onClick={() => copyText(item.value || '', item.label)}
-                  className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
+                  className="w-full sm:w-auto justify-center text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 inline-flex items-center gap-1.5"
                 >
                   {copied === item.label ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   {copied === item.label ? 'Copied' : 'Copy'}
@@ -287,7 +287,7 @@ const { data: blogs } = await supabase
           </p>
         </section>
 
-        <section className="bg-white border border-gray-200 rounded-xl p-6">
+        <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">D. Integration Steps</h2>
           <ol className="list-decimal list-inside text-sm text-gray-700 space-y-2">
             <li>Add environment variables to your website deployment and local `.env` file.</li>
@@ -296,8 +296,8 @@ const { data: blogs } = await supabase
           </ol>
         </section>
 
-        <section className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-3">
+        <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <h2 className="text-lg font-semibold text-gray-900">E. Copy-Paste Snippet</h2>
             <button
               type="button"
@@ -313,7 +313,7 @@ const { data: blogs } = await supabase
           </pre>
         </section>
 
-        <section className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+        <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-amber-900 mb-2">F. Local Development Note</h2>
           <p className="text-sm text-amber-800">
             For localhost development, hardcode `site_key` in your frontend config. Domain-based lookup is no longer

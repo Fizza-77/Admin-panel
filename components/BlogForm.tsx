@@ -187,25 +187,25 @@ export default function BlogForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm tracking-wide sticky top-0 z-10 border border-gray-200 border-b">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl shadow-sm tracking-wide sticky top-2 sm:top-0 z-10 border border-gray-200 border-b">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
         </div>
         <button
           type="submit"
           disabled={isSaving}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition disabled:opacity-50"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
         >
           {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
           {isSaving ? 'Saving...' : 'Save Post'}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
         {/* Main Editor Column */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Blog title * <span className="text-gray-400 font-normal">(headline / name)</span>
@@ -272,7 +272,7 @@ export default function BlogForm({
 
         {/* Sidebar Column */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
             <h3 className="text-base font-bold text-gray-900 border-b pb-3 mb-4">Publishing & SEO</h3>
             
             <div className="space-y-4">
@@ -324,7 +324,7 @@ export default function BlogForm({
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
             <h3 className="text-base font-bold text-gray-900 border-b pb-3 mb-1">Schema.org (BlogPosting)</h3>
             <p className="text-xs text-gray-500 mb-4">
               Maps to JSON-LD <code className="text-xs bg-gray-100 px-1 rounded">BlogPosting</code> /{' '}
@@ -405,7 +405,7 @@ export default function BlogForm({
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
              <Controller
               name="cover_image_url"
               control={control}

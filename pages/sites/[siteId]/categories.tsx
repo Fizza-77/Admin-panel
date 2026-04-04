@@ -143,7 +143,7 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
           <ArrowLeft className="w-4 h-4" />
           Back to setup
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900">Blog categories</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Blog categories</h1>
         <p className="text-slate-600 text-sm mt-1">
           Categories are specific to <span className="font-mono">{site.site_key}</span>. They appear in the post editor
           and on your public site when filtered by this site.
@@ -151,17 +151,17 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Existing categories</h2>
           {categories.length === 0 ? (
             <p className="text-sm text-slate-500">No categories yet. Add one on the right.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {categories.map((c) => (
-                <li key={c.id} className="py-3 flex justify-between gap-4 items-start">
-                  <div>
+                <li key={c.id} className="py-3 flex justify-between gap-3 sm:gap-4 items-start">
+                  <div className="min-w-0">
                     <p className="font-medium text-slate-900">{c.name}</p>
-                    <p className="text-xs font-mono text-slate-500 mt-0.5">{c.slug}</p>
+                    <p className="text-xs font-mono text-slate-500 mt-0.5 break-all">{c.slug}</p>
                     {c.description && <p className="text-sm text-slate-600 mt-1">{c.description}</p>}
                     <p className="text-xs text-slate-400 mt-1">Sort: {c.sort_order}</p>
                   </div>
@@ -184,7 +184,7 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
           )}
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <Plus className="w-5 h-5" />
             Add category
@@ -241,7 +241,7 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
         </div>
       </div>
 
-      <p className="text-xs text-slate-500 mt-8">
+      <p className="text-xs text-slate-500 mt-6 sm:mt-8">
         Quick links:{' '}
         <Link href={setupUnlockHref(`/sites/${site.id}/blogs/create`)} className="text-cyan-700 hover:underline">
           New blog post

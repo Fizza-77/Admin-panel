@@ -129,15 +129,15 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
         <title>Connect Site - Skyen Blog Admin</title>
       </Head>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Add / Connect New Site</h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Add / Connect New Site</h1>
         <p className="text-slate-500 mt-1">
           Register a new tenant with `site_key`, then copy the exact integration instructions for the website project.
         </p>
       </div>
 
       <div className="space-y-6">
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">1) Required Site Credentials</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
@@ -165,12 +165,12 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
           <p className="text-xs text-gray-500 mt-3">
             `site_key` should stay stable forever (e.g. `studiely`, `skyen-solutions`).
           </p>
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={onCreateSite}
               disabled={isSaving}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
             >
               {isSaving ? 'Connecting...' : 'Connect site'}
             </button>
@@ -179,7 +179,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
           </div>
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">2) Add These Env Vars To New Website</h2>
           <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">
             <code>{`NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl || 'https://your-project.supabase.co'}
@@ -203,7 +203,7 @@ SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
           </button>
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">3) Connection Steps</h2>
           <ol className="list-decimal list-inside text-sm text-gray-700 space-y-2">
             <li>Create/connect the site above and keep the generated `site_key` fixed.</li>
@@ -213,8 +213,8 @@ SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
           </ol>
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-3">
+        <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <h2 className="text-lg font-semibold text-gray-900">4) Fetch Blogs Using site_key</h2>
             <button
               type="button"
@@ -230,8 +230,8 @@ SITE_KEY=${normalizedSiteKey || 'your-site-key'}`}</code>
           </pre>
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-3">
+        <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <h2 className="text-lg font-semibold text-gray-900">5) Recommended Helper Functions</h2>
             <button
               type="button"
