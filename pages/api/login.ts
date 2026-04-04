@@ -24,14 +24,13 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       { expiresIn: '7d' }
     );
 
-    // Set HTTP-only cookie
-    res.setHeader('Set-Cookie', serialize('admin_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: '/'
-    }));
+  res.setHeader('Set-Cookie', serialize('admin_session', token, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production', // OK in production
+  sameSite: 'lax', // allows cookie to be sent on first-party requests
+  maxAge: 60 * 60 * 24 * 7,
+  path: '/'
+}));
 
     return res.status(200).json({ success: true });
   }
