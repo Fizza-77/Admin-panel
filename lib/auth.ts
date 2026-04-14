@@ -19,11 +19,6 @@ function safeReturnPath(raw: string | undefined): string {
   return path;
 }
 
-/** Use for `href` on “Add site”, “Setup”, etc. Always goes through `/setup-unlock` first (server redirects if already unlocked). */
-export function setupUnlockHref(returnPath: string): string {
-  return `/setup-unlock?returnUrl=${encodeURIComponent(safeReturnPath(returnPath))}`;
-}
-
 /**
  * For `/setup-unlock` only: skip the form if `ADMIN_SETUP_PASSWORD` is unset, or if the gate cookie is already valid.
  */

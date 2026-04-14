@@ -2,7 +2,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { LayoutDashboard, Link2, LogOut } from 'lucide-react';
 import axios from 'axios';
-import { setupUnlockHref } from '@/lib/auth';
+import { setupUnlockHref } from '@/lib/setup';
 
 export default function Sidebar() {
   const router = useRouter();

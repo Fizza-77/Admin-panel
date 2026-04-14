@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, ExternalLink, Globe2 } from 'lucide-react';
-import { setupUnlockHref } from '@/lib/auth';
+import { setupUnlockHref } from '@/lib/setup';
 import type { Site } from '@/types/site';
 
 interface SitesListProps {
