@@ -3,13 +3,13 @@ import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
 import { verifyAdminSession, ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const auth = verifyAdminSession(req);
+  const auth = await verifyAdminSession(req, res);
   if (!auth.ok) {
     return res.status(401).json({ message: 'Unauthorized' });
   }

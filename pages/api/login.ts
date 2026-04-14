@@ -1,51 +1,71 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
+import { createClient } from '@supabase/supabase-js';
+import { ADMIN_REFRESH_COOKIE, ADMIN_SESSION_COOKIE } from '@/lib/auth';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  // ✅ CORS HEADERS (MUST BE FIRST)
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173'); // change in production
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // ✅ HANDLE PREFLIGHT
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // ❌ Reject non-POST AFTER handling OPTIONS
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
   const { email, password } = req.body;
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return res.status(500).json({ message: 'Supabase environment variables are missing' });
+  }
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
-  if (email === adminEmail && password === adminPassword) {
-    const token = jwt.sign(
-      { email, role: 'admin' },
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '7d' }
-    );
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const submittedPassword = String(password);
 
-    // ✅ FIXED COOKIE
-    res.setHeader('Set-Cookie', serialize('admin_session', token, {
-      httpOnly: true,
-      secure: true,                // 🔥 REQUIRED for SameSite=None
-      sameSite: 'none',            // 🔥 REQUIRED for cross-origin
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    }));
+  const allowedEmails = (process.env.ADMIN_ALLOWED_EMAILS || '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
 
-    return res.status(200).json({ success: true });
+  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
+    return res.status(403).json({ message: 'This email is not allowed to access the admin panel' });
   }
 
-  return res.status(401).json({ message: 'Invalid credentials' });
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false },
+  });
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password: submittedPassword,
+  });
+
+  if (error || !data.session?.access_token || !data.session.refresh_token) {
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  res.setHeader(
+    'Set-Cookie',
+    [
+      serialize(ADMIN_SESSION_COOKIE, data.session.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      }),
+      serialize(ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      }),
+    ],
+  );
+
+  return res.status(200).json({ success: true });
 }

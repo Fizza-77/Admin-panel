@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
-import { requireAuthentication, requireSetupPassword, setupUnlockHref } from '@/lib/auth';
+import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
@@ -243,7 +243,7 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
 
       <p className="text-xs text-slate-500 mt-6 sm:mt-8">
         Quick links:{' '}
-        <Link href={setupUnlockHref(`/sites/${site.id}/blogs/create`)} className="text-cyan-700 hover:underline">
+        <Link href={`/sites/${site.id}/blogs/create`} className="text-cyan-700 hover:underline">
           New blog post
         </Link>
       </p>

@@ -2,9 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { GetServerSidePropsContext } from 'next';
 import nookies from 'nookies';
 import jwt from 'jsonwebtoken';
+import { serialize } from 'cookie';
+import { supabase } from '@/lib/supabase/server';
 
 /** HttpOnly cookie set after the user passes ADMIN_SETUP_PASSWORD (sensitive site/blog actions). */
 export const ADMIN_SETUP_GATE_COOKIE = 'admin_setup_gate';
+export const ADMIN_SESSION_COOKIE = 'admin_session';
+export const ADMIN_REFRESH_COOKIE = 'admin_refresh_token';
 
 function safeReturnPath(raw: string | undefined): string {
   if (!raw || typeof raw !== 'string') return '/';
@@ -85,25 +89,66 @@ export function assertSetupGateAllowed(req: NextApiRequest, res: NextApiResponse
 
 export function verifyAdminSession(
   req: NextApiRequest,
-): { ok: true } | { ok: false; message: string } {
-  const token = req.cookies.admin_session;
-  if (!token) {
-    return { ok: false, message: 'Unauthorized' };
-  }
-  try {
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    return { ok: true };
-  } catch {
-    return { ok: false, message: 'Unauthorized' };
-  }
+  res?: NextApiResponse,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const accessToken = req.cookies[ADMIN_SESSION_COOKIE];
+  const refreshToken = req.cookies[ADMIN_REFRESH_COOKIE];
+
+  const verifyOrRefresh = async () => {
+    if (accessToken) {
+      const { data, error } = await supabase.auth.getUser(accessToken);
+      if (!error && data.user) {
+        return { ok: true } as const;
+      }
+
+      if (!refreshToken) {
+        return { ok: false, message: 'Unauthorized' } as const;
+      }
+    } else if (!refreshToken) {
+      return { ok: false, message: 'Unauthorized' } as const;
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session?.access_token || !data.session.refresh_token) {
+      return { ok: false, message: 'Unauthorized' } as const;
+    }
+
+    if (res) {
+      const secure = process.env.NODE_ENV === 'production';
+      res.setHeader('Set-Cookie', [
+        serialize(ADMIN_SESSION_COOKIE, data.session.access_token, {
+          httpOnly: true,
+          secure,
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        }),
+        serialize(ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
+          httpOnly: true,
+          secure,
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        }),
+      ]);
+    }
+
+    return { ok: true } as const;
+  };
+
+  return verifyOrRefresh().catch(() => ({ ok: false, message: 'Unauthorized' } as const));
 }
 
 export function requireAuthentication(gssp: any) {
   return async (context: GetServerSidePropsContext) => {
     const cookies = nookies.get(context);
-    const token = cookies.admin_session;
+    const token = cookies[ADMIN_SESSION_COOKIE];
+    const refreshToken = cookies[ADMIN_REFRESH_COOKIE];
 
-    if (!token) {
+    if (!token && !refreshToken) {
       return {
         redirect: {
           destination: '/login',
@@ -112,11 +157,38 @@ export function requireAuthentication(gssp: any) {
       };
     }
 
-    try {
-      jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-      // If valid, continue to page props
-      return await gssp(context);
-    } catch (err) {
+    let isAuthed = false;
+
+    if (token) {
+      const { data, error } = await supabase.auth.getUser(token);
+      isAuthed = !error && Boolean(data.user);
+    }
+
+    if (!isAuthed && refreshToken) {
+      const { data, error } = await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+
+      if (!error && data.session?.access_token && data.session.refresh_token) {
+        isAuthed = true;
+        nookies.set(context, ADMIN_SESSION_COOKIE, data.session.access_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        });
+        nookies.set(context, ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        });
+      }
+    }
+
+    if (!isAuthed) {
       return {
         redirect: {
           destination: '/login',
@@ -124,6 +196,9 @@ export function requireAuthentication(gssp: any) {
         },
       };
     }
+
+    // If valid, continue to page props
+    return await gssp(context);
   };
 }
 

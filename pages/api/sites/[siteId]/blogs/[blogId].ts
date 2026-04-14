@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { assertSetupGateAllowed, verifyAdminSession } from '@/lib/auth';
+import { verifyAdminSession } from '@/lib/auth';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
 import { supabase } from '@/lib/supabase/server';
 
@@ -16,12 +16,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>,
 ) {
-  const auth = verifyAdminSession(req);
+  const auth = await verifyAdminSession(req, res);
   if (!auth.ok) {
     return res.status(401).json({ message: auth.message });
-  }
-  if (!assertSetupGateAllowed(req, res)) {
-    return;
   }
 
   const { siteId, blogId } = req.query;

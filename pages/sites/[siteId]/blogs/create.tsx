@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import { GetServerSidePropsContext } from 'next';
-import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
+import { requireAuthentication } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogForm from '@/components/BlogForm';
 import { supabase } from '@/lib/supabase/server';
@@ -10,27 +10,25 @@ interface CreateSiteBlogPageProps {
   site: Site;
 }
 
-export const getServerSideProps = requireAuthentication(
-  requireSetupPassword(async (context: GetServerSidePropsContext) => {
-    const { siteId } = context.params as { siteId: string };
+export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+  const { siteId } = context.params as { siteId: string };
 
-    const { data: site, error } = await supabase
-      .from('sites')
-      .select('id,name,domain,site_key')
-      .eq('id', siteId)
-      .single();
+  const { data: site, error } = await supabase
+    .from('sites')
+    .select('id,name,domain,site_key')
+    .eq('id', siteId)
+    .single();
 
-    if (error || !site) {
-      return { notFound: true };
-    }
+  if (error || !site) {
+    return { notFound: true };
+  }
 
-    return {
-      props: {
-        site,
-      },
-    };
-  }),
-);
+  return {
+    props: {
+      site,
+    },
+  };
+});
 
 export default function CreateSiteBlog({ site }: CreateSiteBlogPageProps) {
   return (

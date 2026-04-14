@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import { GetServerSidePropsContext } from 'next';
-import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
+import { requireAuthentication } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogForm from '@/components/BlogForm';
 import { supabase } from '@/lib/supabase/server';
@@ -20,43 +20,41 @@ interface EditSiteBlogPageProps {
   blog: Blog;
 }
 
-export const getServerSideProps = requireAuthentication(
-  requireSetupPassword(async (context: GetServerSidePropsContext) => {
-    const { siteId, id } = context.params as { siteId: string; id: string };
+export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+  const { siteId, id } = context.params as { siteId: string; id: string };
 
-    const { data: blog, error: blogError } = await supabase
-      .from('blogs')
-      .select('*')
-      .eq('id', id)
-      .eq('site_id', siteId)
-      .single();
+  const { data: blog, error: blogError } = await supabase
+    .from('blogs')
+    .select('*')
+    .eq('id', id)
+    .eq('site_id', siteId)
+    .single();
 
-    if (blogError || !blog) {
-      return {
-        notFound: true,
-      };
-    }
-
-    const { data: site, error: siteError } = await supabase
-      .from('sites')
-      .select('id,name,domain,site_key')
-      .eq('id', blog.site_id)
-      .single();
-
-    if (siteError || !site) {
-      return {
-        notFound: true,
-      };
-    }
-
+  if (blogError || !blog) {
     return {
-      props: {
-        site,
-        blog,
-      },
+      notFound: true,
     };
-  }),
-);
+  }
+
+  const { data: site, error: siteError } = await supabase
+    .from('sites')
+    .select('id,name,domain,site_key')
+    .eq('id', blog.site_id)
+    .single();
+
+  if (siteError || !site) {
+    return {
+      notFound: true,
+    };
+  }
+
+  return {
+    props: {
+      site,
+      blog,
+    },
+  };
+});
 
 export default function EditSiteBlog({ site, blog }: EditSiteBlogPageProps) {
   if (!blog) {

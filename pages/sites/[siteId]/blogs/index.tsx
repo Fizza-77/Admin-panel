@@ -108,7 +108,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
             Setup
           </Link>
           <Link
-            href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
+            href={`/sites/${site.id}/blogs/create`}
             className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 sm:px-4 rounded-lg transition shadow-sm text-sm"
           >
             <PlusCircle className="w-5 h-5" />

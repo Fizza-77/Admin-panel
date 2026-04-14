@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serialize } from 'cookie';
-import { ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
+import { ADMIN_REFRESH_COOKIE, ADMIN_SESSION_COOKIE, ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -16,7 +16,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   };
 
   res.setHeader('Set-Cookie', [
-    serialize('admin_session', '', clear),
+    serialize(ADMIN_SESSION_COOKIE, '', clear),
+    serialize(ADMIN_REFRESH_COOKIE, '', clear),
     serialize(ADMIN_SETUP_GATE_COOKIE, '', clear),
   ]);
 

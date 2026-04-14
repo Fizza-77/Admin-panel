@@ -147,7 +147,7 @@ const { data: blogs } = await supabase
             Categories
           </Link>
           <Link
-            href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
+            href={`/sites/${site.id}/blogs/create`}
             className="text-center min-h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-2 sm:px-4 rounded-lg transition text-xs sm:text-sm"
           >
             New Blog

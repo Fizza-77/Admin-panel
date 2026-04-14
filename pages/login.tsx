@@ -39,15 +39,15 @@ export default function Login() {
   return (
     <>
       <Head>
-        <title>Login - Blog Admin</title>
+        <title>Login - Skyen Admin</title>
       </Head>
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-            Blog Admin Panel
+            Skyen Admin Panel
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to manage blog posts and settings
+            Sign in to access all admin features
           </p>
         </div>
 
