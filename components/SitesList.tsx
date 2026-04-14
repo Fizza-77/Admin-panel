@@ -67,7 +67,7 @@ export default function SitesList({ sites }: SitesListProps) {
                     Setup
                   </Link>
                   <Link
-                    href={setupUnlockHref(`/sites/${site.id}/blogs/create`)}
+                    href={`/sites/${site.id}/blogs/create`}
                     className="flex-1 text-center bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg transition text-sm"
                   >
                     New blog

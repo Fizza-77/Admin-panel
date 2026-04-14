@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { assertSetupGateAllowed, verifyAdminSession } from '@/lib/auth';
+import { verifyAdminSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase/server';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
@@ -8,9 +8,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const auth = await verifyAdminSession(req, res);
   if (!auth.ok) {
     return res.status(401).json({ message: auth.message });
-  }
-  if (!assertSetupGateAllowed(req, res)) {
-    return;
   }
 
   const siteId = req.query.siteId;

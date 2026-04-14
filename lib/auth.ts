@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
 import { supabase } from '@/lib/supabase/server';
 
-/** HttpOnly cookie set after the user passes ADMIN_SETUP_PASSWORD (sensitive site/blog actions). */
+/** HttpOnly cookie set after the user passes ADMIN_SETUP_PASSWORD (site setup actions). */
 export const ADMIN_SETUP_GATE_COOKIE = 'admin_setup_gate';
 export const ADMIN_SESSION_COOKIE = 'admin_session';
 export const ADMIN_REFRESH_COOKIE = 'admin_refresh_token';
@@ -53,7 +53,7 @@ export function resolveSetupUnlockGate(
 }
 
 /**
- * When `ADMIN_SETUP_PASSWORD` is set, API routes that change sites or blogs must also receive
+ * When `ADMIN_SETUP_PASSWORD` is set, API routes that change site setup data must also receive
  * the `admin_setup_gate` cookie from `POST /api/setup-unlock`.
  */
 export function assertSetupGateAllowed(req: NextApiRequest, res: NextApiResponse): boolean {

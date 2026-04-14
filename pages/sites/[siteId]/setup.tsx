@@ -4,7 +4,6 @@ import { GetServerSidePropsContext } from 'next';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
-import { setupUnlockHref } from '@/lib/setup';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
@@ -142,7 +141,7 @@ const { data: blogs } = await supabase
             Blogs
           </Link>
           <Link
-            href={setupUnlockHref(`/sites/${site.id}/categories`)}
+            href={`/sites/${site.id}/categories`}
             className="text-center min-h-10 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-2 sm:px-4 rounded-lg border border-teal-200 transition text-xs sm:text-sm"
           >
             Categories
@@ -252,7 +251,7 @@ const { data: blogs } = await supabase
           </div>
           <p className="text-xs text-gray-500 mt-3">
             Save with section A (Site info) to persist these fields. Manage categories per website from the{' '}
-            <Link href={setupUnlockHref(`/sites/${site.id}/categories`)} className="text-cyan-700 hover:underline">
+            <Link href={`/sites/${site.id}/categories`} className="text-cyan-700 hover:underline">
               Categories
             </Link>{' '}
             page (or seed via SQL per <code className="font-mono bg-gray-100 px-1 rounded">site_id</code>).

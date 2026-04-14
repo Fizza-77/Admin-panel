@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { assertSetupGateAllowed, verifyAdminSession } from '@/lib/auth';
+import { verifyAdminSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase/server';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
@@ -36,8 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    if (!assertSetupGateAllowed(req, res)) return;
-
     const { slug, name, description, sort_order } = req.body ?? {};
     if (typeof slug !== 'string' || !slug.trim()) {
       return res.status(400).json({ message: 'slug is required' });
