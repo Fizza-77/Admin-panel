@@ -27,6 +27,7 @@ export type BlogCategoryRow = {
 export type BlogPostRow = {
   id: string;
   site_id: string;
+  status: 'draft' | 'published';
   title: string;
   slug: string;
   description: string | null;
@@ -100,8 +101,9 @@ export async function getBlogsForSite(supabase: SupabaseClient, siteId: string):
   const [{ data: blogs, error: blogsError }, { data: cats }] = await Promise.all([
     supabase
       .from('blogs')
-      .select('id,site_id,title,slug,description,meta_description,display_date,cover_image_url,category_id')
+      .select('id,site_id,status,title,slug,description,meta_description,display_date,cover_image_url,category_id')
       .eq('site_id', siteId)
+      .eq('status', 'published')
       .order('display_date', { ascending: false }),
     supabase.from('blog_categories').select('id,site_id,slug,name,description').eq('site_id', siteId),
   ]);

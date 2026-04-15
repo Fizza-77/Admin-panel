@@ -37,6 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     const body = req.body as BlogBody;
+    const status = body?.status === 'draft' ? 'draft' : 'published';
     if (!body?.title || !body?.slug || !body?.display_date) {
       return res.status(400).json({ message: 'Missing required fields: title, slug, display_date' });
     }
@@ -47,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ message: 'This slug is already in use for this site.' });
     }
 
-    const row = buildBlogRow(siteId, body);
+    const row = buildBlogRow(siteId, { ...body, status });
     const { error } = await supabase.from('blogs').insert([row]);
 
     if (error) {

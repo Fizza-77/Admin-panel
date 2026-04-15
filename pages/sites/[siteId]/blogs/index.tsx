@@ -14,6 +14,7 @@ import type { Site } from '@/types/site';
 type Blog = {
   id: string;
   title: string;
+  status: 'draft' | 'published';
   description: string | null;
   slug: string;
   cover_image_url: string | null;
@@ -40,7 +41,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 
   const { data: blogs, error: blogsError } = await supabase
     .from('blogs')
-    .select('id,title,description,slug,cover_image_url,display_date,created_at')
+    .select('id,title,status,description,slug,cover_image_url,display_date,created_at')
     .eq('site_id', site.id)
     .order('created_at', { ascending: false });
 
@@ -169,6 +170,13 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                   <h3 className="text-lg font-bold text-gray-900 line-clamp-2" title={blog.title}>
                     {blog.title}
                   </h3>
+                  <span
+                    className={`ml-2 shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      blog.status === 'draft' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    {blog.status === 'draft' ? 'Draft' : 'Published'}
+                  </span>
                 </div>
                 {blog.display_date && (
                   <p className="text-xs text-gray-500 font-medium mb-3">
@@ -183,9 +191,15 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                     href={`https://${site.domain}/blog/${blog.slug}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2.5 px-3 rounded-lg border border-gray-200 transition text-sm"
+                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2.5 px-3 rounded-lg border border-gray-200 transition text-sm disabled:pointer-events-none disabled:opacity-50"
+                    aria-disabled={blog.status === 'draft'}
+                    onClick={(event) => {
+                      if (blog.status === 'draft') {
+                        event.preventDefault();
+                      }
+                    }}
                   >
-                    <ExternalLink className="w-4 h-4" /> View
+                    <ExternalLink className="w-4 h-4" /> {blog.status === 'draft' ? 'Not Public' : 'View'}
                   </a>
                   <Link
                     href={`/sites/${site.id}/blogs/edit/${blog.id}`}

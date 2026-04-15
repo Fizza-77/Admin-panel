@@ -9,7 +9,7 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
   loading: () => <div className="h-[300px] w-full bg-gray-50 animate-pulse rounded-xl border border-gray-200" />
 });
 
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Send } from 'lucide-react';
 
 type CategoryOption = { id: string; name: string };
 
@@ -26,6 +26,9 @@ export default function BlogForm({
 }: BlogFormProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [saveIntent, setSaveIntent] = useState<'draft' | 'published'>(
+    initialData?.status === 'draft' ? 'draft' : 'published',
+  );
   const [slugError, setSlugError] = useState('');
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -123,7 +126,8 @@ export default function BlogForm({
     return result.available === true;
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: any, status: 'draft' | 'published' = saveIntent) => {
+    setSaveIntent(status);
     setIsSaving(true);
     setSlugError('');
 
@@ -138,6 +142,7 @@ export default function BlogForm({
       const selectedCategory = categories.find((c) => c.id === data.category_id);
 
       const body = {
+        status,
         title: data.title,
         slug: data.slug,
         meta_title: data.meta_title,
@@ -185,20 +190,42 @@ export default function BlogForm({
     }
   };
 
+  const submitWithStatus = (status: 'draft' | 'published') => {
+    setSaveIntent(status);
+    handleSubmit((data) => onSubmit(data, status))();
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8 w-full max-w-5xl">
+    <form onSubmit={handleSubmit((data) => onSubmit(data, 'published'))} className="space-y-6 sm:space-y-8 w-full max-w-5xl">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl shadow-sm tracking-wide sticky top-0 z-10 border border-gray-200 border-b">
         <div className="flex items-center gap-4">
           <h1 className="text-lg sm:text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
+          {initialData?.status === 'draft' && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+              Draft
+            </span>
+          )}
         </div>
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
-        >
-          {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {isSaving ? 'Saving...' : 'Save Post'}
-        </button>
+        <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => submitWithStatus('draft')}
+            className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
+          >
+            {isSaving && saveIntent === 'draft' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isSaving && saveIntent === 'draft' ? 'Saving Draft...' : 'Save Draft'}
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => submitWithStatus('published')}
+            className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
+          >
+            {isSaving && saveIntent === 'published' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {isSaving && saveIntent === 'published' ? 'Publishing...' : isEdit ? 'Update & Publish' : 'Publish'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">

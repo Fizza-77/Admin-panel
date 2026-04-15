@@ -1,6 +1,7 @@
 export type BlogBody = {
   title: string;
   slug: string;
+  status?: 'draft' | 'published';
   meta_title?: string;
   description?: string;
   meta_description?: string;
@@ -19,10 +20,12 @@ export type BlogBody = {
 
 export function buildBlogRow(siteId: string, body: BlogBody) {
   const now = new Date().toISOString();
+  const status = body.status === 'draft' ? 'draft' : 'published';
   return {
     site_id: siteId,
     title: body.title,
     slug: body.slug,
+    status,
     meta_title: body.meta_title ?? '',
     description: body.description ?? '',
     meta_description: body.meta_description ?? '',

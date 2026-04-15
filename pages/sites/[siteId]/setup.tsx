@@ -63,7 +63,8 @@ const { data: site } = await supabase
 const { data: blogs } = await supabase
   .from('blogs')
   .select('*')
-  .eq('site_id', site.id);`;
+  .eq('site_id', site.id)
+  .eq('status', 'published');`;
 
   const copyText = async (value: string, key: string) => {
     try {

@@ -48,6 +48,7 @@ const { data: blogs } = await supabase
   .from('blogs')
   .select('*')
   .eq('site_id', site.id)
+  .eq('status', 'published')
   .order('display_date', { ascending: false });`;
 
   const helperFunctionsSnippet = `export async function getSiteByKey(supabase, siteKey) {
@@ -67,6 +68,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
     .from('blogs')
     .select('*')
     .eq('site_id', site.id)
+    .eq('status', 'published')
     .order('display_date', { ascending: false });
 
   if (error) throw error;
