@@ -15,8 +15,12 @@ export const uploadImageToServer = async (file: File): Promise<string> => {
     // Do not set Content-Type: the browser must send multipart/form-data with a boundary.
     // A bare "multipart/form-data" header breaks parsing on the server (formidable gets no file).
     const response = await axios.post('/api/upload', formData);
+    const uploadedUrl = response?.data?.url;
+    if (typeof uploadedUrl !== 'string' || uploadedUrl.trim().length === 0) {
+      throw new Error('Upload succeeded but response URL is missing');
+    }
 
-    return response.data.url;
+    return uploadedUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
     throw new Error('Failed to upload image');

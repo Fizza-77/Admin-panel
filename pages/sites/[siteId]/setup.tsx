@@ -7,6 +7,7 @@ import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
+import { reportError } from '@/lib/monitoring';
 
 interface SiteSetupPageProps {
   site: Site;
@@ -68,10 +69,14 @@ const { data: blogs } = await supabase
 
   const copyText = async (value: string, key: string) => {
     try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable in this browser context');
+      }
       await navigator.clipboard.writeText(value);
       setCopied(key);
       setTimeout(() => setCopied(''), 1800);
-    } catch {
+    } catch (error) {
+      reportError(error, { source: 'SiteSetupPage.copyText', key, siteId: site?.id ?? null });
       setSaveError('Copy failed. Please copy manually.');
     }
   };
@@ -117,6 +122,7 @@ const { data: blogs } = await supabase
       setFormData((prev) => ({ ...prev, site_key: normalizedSiteKey }));
       setSaveMessage('Site updated successfully.');
     } catch (requestError: any) {
+      reportError(requestError, { source: 'SiteSetupPage.onSave', siteId: site?.id ?? null });
       setSaveError(requestError?.message || 'Failed to update site');
     } finally {
       setSaving(false);

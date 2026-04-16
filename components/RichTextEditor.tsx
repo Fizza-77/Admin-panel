@@ -6,6 +6,7 @@ import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import { uploadImageToServer } from '@/services/cloudinary';
+import { reportError } from '@/lib/monitoring';
 import { 
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -46,6 +47,9 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
   });
 
   const addImage = useCallback(async () => {
+    if (typeof document === 'undefined') {
+      return;
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -56,6 +60,7 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
           const url = await uploadImageToServer(file);
           editor?.chain().focus().setImage({ src: url }).run();
         } catch (error) {
+          reportError(error, { source: 'RichTextEditor.addImage' });
           alert('Failed to upload image. Try again.');
         }
       }
@@ -64,6 +69,9 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
   }, [editor]);
 
   const setLink = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     const previousUrl = editor?.getAttributes('link').href;
     const url = window.prompt('URL', previousUrl);
     

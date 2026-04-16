@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
+import { reportError } from '@/lib/monitoring';
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
 
@@ -77,10 +78,14 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
 
   const copyText = async (value: string, key: string) => {
     try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable in this browser context');
+      }
       await navigator.clipboard.writeText(value);
       setCopied(key);
       setTimeout(() => setCopied(''), 1800);
-    } catch {
+    } catch (error) {
+      reportError(error, { source: 'ConnectSitePage.copyText', key });
       setError('Copy failed. Please copy manually.');
     }
   };
@@ -119,6 +124,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
       setFormData({ name: '', domain: '', site_key: '' });
       await router.replace(router.asPath);
     } catch (requestError: any) {
+      reportError(requestError, { source: 'ConnectSitePage.onCreateSite' });
       setError(requestError?.message || 'Failed to create/connect site');
     } finally {
       setIsSaving(false);

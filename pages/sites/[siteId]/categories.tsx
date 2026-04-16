@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
 import type { BlogCategory } from '@/types/blogCategory';
 import { Loader2, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { reportError } from '@/lib/monitoring';
 
 interface PageProps {
   site: Site;
@@ -46,7 +47,7 @@ const SLUG_HINT = /^[a-z0-9-]+$/;
 
 export default function SiteCategoriesPage({ site, categories: initialCategories }: PageProps) {
   const router = useRouter();
-  const [categories, setCategories] = useState(initialCategories);
+  const [categories, setCategories] = useState(Array.isArray(initialCategories) ? initialCategories : []);
   const [slug, setSlug] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -56,10 +57,17 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const reload = async () => {
-    const res = await fetch(`/api/sites/${site.id}/blog-categories`, { credentials: 'include' });
-    const body = await res.json().catch(() => ({}));
-    if (res.ok && body.categories) {
-      setCategories(body.categories);
+    try {
+      const res = await fetch(`/api/sites/${site.id}/blog-categories`, { credentials: 'include' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(body?.categories)) {
+        setCategories(body.categories);
+      }
+    } catch (error) {
+      reportError(error, {
+        source: 'SiteCategoriesPage.reload',
+        siteId: site?.id ?? null,
+      });
     }
   };
 
@@ -99,6 +107,10 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
       await reload();
       await router.replace(router.asPath);
     } catch (err: any) {
+      reportError(err, {
+        source: 'SiteCategoriesPage.onAdd',
+        siteId: site?.id ?? null,
+      });
       setError(err.message || 'Failed to add category');
     } finally {
       setSaving(false);
@@ -121,6 +133,11 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
       await reload();
       await router.replace(router.asPath);
     } catch (err: any) {
+      reportError(err, {
+        source: 'SiteCategoriesPage.onDelete',
+        siteId: site?.id ?? null,
+        categoryId: id,
+      });
       setError(err.message || 'Failed to delete');
     } finally {
       setDeletingId(null);
@@ -155,7 +172,7 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
             <p className="text-sm text-slate-500">No categories yet. Add one on the right.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {categories.map((c) => (
+              {(Array.isArray(categories) ? categories : []).map((c) => (
                 <li key={c.id} className="py-3 flex justify-between gap-3 sm:gap-4 items-start">
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900">{c.name}</p>

@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase/server';
 import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Site } from '@/types/site';
+import { reportError } from '@/lib/monitoring';
 
 type Blog = {
   id: string;
@@ -62,6 +63,20 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const safeBlogs = Array.isArray(blogs) ? blogs : [];
+
+  const formatDisplayDate = (input: string | null) => {
+    if (!input) return null;
+    const parsed = new Date(input);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    try {
+      return format(parsed, 'MMM d, yyyy');
+    } catch {
+      return null;
+    }
+  };
 
   const handleDelete = async () => {
     if (!pendingDelete) return;
@@ -81,6 +96,11 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
       setPendingDelete(null);
       setDeleteError(null);
     } catch (error: any) {
+      reportError(error, {
+        source: 'SiteBlogsPage.handleDelete',
+        siteId: site?.id ?? null,
+        blogId: pendingDelete.id,
+      });
       setDeleteError(error?.message || 'Failed to delete blog');
     } finally {
       setDeletingBlogId(null);
@@ -137,7 +157,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
         </div>
       )}
 
-      {blogs.length === 0 ? (
+      {safeBlogs.length === 0 ? (
         <div className="text-center py-14 sm:py-20 bg-white rounded-xl border border-gray-200 border-dashed">
           <FileText className="mx-auto h-12 w-12 text-gray-300 mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No blogs found</h3>
@@ -147,7 +167,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-          {blogs.map((blog) => (
+          {safeBlogs.map((blog) => (
             <div
               key={blog.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col group hover:shadow-md transition"
@@ -156,7 +176,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                 {blog.cover_image_url ? (
                   <img
                     src={blog.cover_image_url}
-                    alt={blog.title}
+                    alt={blog.title || 'Blog image'}
                     className="w-full h-48 object-cover transition-transform group-hover:scale-105"
                   />
                 ) : (
@@ -167,8 +187,8 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
               </div>
               <div className="p-4 sm:p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-bold text-gray-900 line-clamp-2" title={blog.title}>
-                    {blog.title}
+                  <h3 className="text-lg font-bold text-gray-900 line-clamp-2" title={blog.title || 'Untitled post'}>
+                    {blog.title || 'Untitled post'}
                   </h3>
                   <span
                     className={`ml-2 shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -178,9 +198,9 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                     {blog.status === 'draft' ? 'Draft' : 'Published'}
                   </span>
                 </div>
-                {blog.display_date && (
+                {formatDisplayDate(blog.display_date) && (
                   <p className="text-xs text-gray-500 font-medium mb-3">
-                    {format(new Date(blog.display_date), 'MMM d, yyyy')}
+                    {formatDisplayDate(blog.display_date)}
                   </p>
                 )}
                 <p className="text-sm text-gray-600 line-clamp-3 mb-4 flex-1">
@@ -188,13 +208,13 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                 </p>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-4 border-t border-gray-100 mt-auto">
                   <a
-                    href={`https://${site.domain}/blog/${blog.slug}`}
+                    href={site.domain ? `https://${site.domain}/blog/${blog.slug}` : '#'}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2.5 px-3 rounded-lg border border-gray-200 transition text-sm disabled:pointer-events-none disabled:opacity-50"
                     aria-disabled={blog.status === 'draft'}
                     onClick={(event) => {
-                      if (blog.status === 'draft') {
+                      if (blog.status === 'draft' || !site.domain) {
                         event.preventDefault();
                       }
                     }}
@@ -211,7 +231,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                     type="button"
                     onClick={() => {
                       setDeleteError(null);
-                      setPendingDelete({ id: blog.id, title: blog.title });
+                      setPendingDelete({ id: blog.id, title: blog.title || 'Untitled post' });
                     }}
                     disabled={deletingBlogId === blog.id}
                     className="w-full sm:w-auto flex items-center justify-center p-2.5 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed"

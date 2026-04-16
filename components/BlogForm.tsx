@@ -10,6 +10,7 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
 });
 
 import { Loader2, Save, Send } from 'lucide-react';
+import { reportError } from '@/lib/monitoring';
 
 type CategoryOption = { id: string; name: string };
 
@@ -17,6 +18,17 @@ interface BlogFormProps {
   initialData?: any;
   isEdit?: boolean;
   siteId: string;
+}
+
+const getTodayDateInputValue = () => new Date().toISOString().split('T')[0];
+
+function toSafeDateInputValue(value: unknown): string {
+  if (!value) return getTodayDateInputValue();
+  const date = new Date(value as string);
+  if (Number.isNaN(date.getTime())) {
+    return getTodayDateInputValue();
+  }
+  return date.toISOString().split('T')[0];
 }
 
 export default function BlogForm({
@@ -41,7 +53,7 @@ export default function BlogForm({
       meta_title: initialData?.meta_title || '',
       description: initialData?.description || '',
       meta_description: initialData?.meta_description || '',
-      display_date: initialData?.display_date ? new Date(initialData.display_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      display_date: toSafeDateInputValue(initialData?.display_date),
       cover_image_url: initialData?.cover_image_url || '',
       content: initialData?.content || '',
       author_name: initialData?.author_name || '',
@@ -73,23 +85,35 @@ export default function BlogForm({
     }
     setCategoriesLoading(true);
     (async () => {
-      const response = await fetch(`/api/sites/${siteId}/blog-categories`, {
-        credentials: 'include',
-      });
-      if (cancelled) return;
-      setCategoriesLoading(false);
-      if (!response.ok) {
-        setCategories([]);
-        return;
+      try {
+        const response = await fetch(`/api/sites/${siteId}/blog-categories`, {
+          credentials: 'include',
+        });
+        if (cancelled) return;
+        if (!response.ok) {
+          setCategories([]);
+          return;
+        }
+        const body = await response.json().catch(() => ({}));
+        const list = Array.isArray(body?.categories) ? body.categories : [];
+        setCategories(
+          list
+            .filter((c: any) => c && typeof c.id === 'string' && typeof c.name === 'string')
+            .map((c: { id: string; name: string }) => ({
+              id: c.id,
+              name: c.name,
+            })),
+        );
+      } catch (error) {
+        reportError(error, { source: 'BlogForm.loadCategories', siteId });
+        if (!cancelled) {
+          setCategories([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setCategoriesLoading(false);
+        }
       }
-      const body = await response.json().catch(() => ({}));
-      const list = (body.categories ?? []) as { id: string; name: string }[];
-      setCategories(
-        list.map((c) => ({
-          id: c.id,
-          name: c.name,
-        })),
-      );
     })();
     return () => {
       cancelled = true;
@@ -108,6 +132,10 @@ export default function BlogForm({
   }, [titleWatcher, isEdit, slugWatcher, setValue]);
 
   const checkSlugUnique = async (slug: string) => {
+    if (!siteId) {
+      throw new Error('Missing site context for slug validation');
+    }
+
     const params = new URLSearchParams({ slug });
     if (isEdit && initialData?.id) {
       params.set('excludeId', initialData.id);
@@ -122,7 +150,10 @@ export default function BlogForm({
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to validate slug');
     }
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
+    if (!result || typeof result.available !== 'boolean') {
+      throw new Error('Invalid slug validation response');
+    }
     return result.available === true;
   };
 
@@ -132,6 +163,13 @@ export default function BlogForm({
     setSlugError('');
 
     try {
+      if (!siteId) {
+        throw new Error('Missing site id');
+      }
+      if (!data?.title || !data?.slug || !data?.display_date) {
+        throw new Error('Title, slug, and display date are required');
+      }
+
       const isUnique = await checkSlugUnique(data.slug);
       if (!isUnique) {
         setSlugError('This slug is already in use for this site.');
@@ -181,9 +219,14 @@ export default function BlogForm({
         throw new Error(err.message || 'Failed to save blog post');
       }
 
-      router.push(`/sites/${siteId}/blogs`);
+      await router.push(`/sites/${siteId}/blogs`);
     } catch (error: any) {
-      console.error('Save error:', error);
+      reportError(error, {
+        source: 'BlogForm.onSubmit',
+        siteId,
+        isEdit,
+        blogId: initialData?.id ?? null,
+      });
       alert(error.message || 'Failed to save blog post');
     } finally {
       setIsSaving(false);
@@ -267,7 +310,7 @@ export default function BlogForm({
                 className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="">Select category</option>
-                {categories.map((c) => (
+                {(Array.isArray(categories) ? categories : []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>

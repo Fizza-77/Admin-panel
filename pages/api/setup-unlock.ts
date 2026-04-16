@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
 import { verifyAdminSession, ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
+import { reportError } from '@/lib/monitoring';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -28,7 +29,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: 'Invalid setup password' });
   }
 
-  const token = jwt.sign({ setup: true }, process.env.JWT_SECRET || 'fallback_secret', {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || !jwtSecret.trim()) {
+    reportError(new Error('Missing JWT_SECRET in setup-unlock API'), {
+      source: 'api/setup-unlock',
+    });
+    return res.status(500).json({ message: 'Server configuration error: JWT_SECRET is missing.' });
+  }
+
+  const token = jwt.sign({ setup: true }, jwtSecret, {
     expiresIn: '8h',
   });
 

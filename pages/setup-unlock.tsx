@@ -6,6 +6,7 @@ import { Lock, Loader2 } from 'lucide-react';
 import { requireAuthentication, resolveSetupUnlockGate } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { GetServerSideProps, GetServerSidePropsContext } from 'next';
+import { reportError } from '@/lib/monitoring';
 
 // ✅ Fix: explicitly type the exported getServerSideProps
 export const getServerSideProps: GetServerSideProps = requireAuthentication(
@@ -35,11 +36,16 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnloc
       const dest = returnUrl.startsWith('/') && !returnUrl.startsWith('//') ? returnUrl : '/';
       await router.replace(dest);
     } catch (err: any) {
+      reportError(err, { source: 'SetupUnlockPage.onSubmit', returnUrl: destOrFallback(returnUrl) });
       setError(err.response?.data?.message || 'Could not verify password');
     } finally {
       setLoading(false);
     }
   };
+
+  function destOrFallback(value: string): string {
+    return value.startsWith('/') && !value.startsWith('//') ? value : '/';
+  }
 
   return (
     <AdminLayout>

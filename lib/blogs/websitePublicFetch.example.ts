@@ -38,8 +38,11 @@ export type BlogPostRow = {
 };
 
 export function createPublicSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  }
   return createClient(url, key);
 }
 
@@ -89,7 +92,7 @@ export async function getBlogCategories(
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as BlogCategoryRow[];
+  return (Array.isArray(data) ? data : []) as BlogCategoryRow[];
 }
 
 export type BlogWithCategory = BlogPostRow & {
@@ -110,9 +113,11 @@ export async function getBlogsForSite(supabase: SupabaseClient, siteId: string):
 
   if (blogsError) throw blogsError;
 
-  const catMap = new Map((cats ?? []).map((c) => [c.id, c]));
+  const safeCats = Array.isArray(cats) ? cats : [];
+  const safeBlogs = Array.isArray(blogs) ? blogs : [];
+  const catMap = new Map(safeCats.map((c) => [c.id, c]));
 
-  return (blogs ?? []).map((b) => ({
+  return safeBlogs.map((b) => ({
     ...(b as BlogPostRow),
     category: b.category_id ? catMap.get(b.category_id) ?? null : null,
   }));

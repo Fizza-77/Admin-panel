@@ -4,11 +4,20 @@ import nookies from 'nookies';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
 import { supabase } from '@/lib/supabase/server';
+import { reportError } from '@/lib/monitoring';
 
 /** HttpOnly cookie set after the user passes ADMIN_SETUP_PASSWORD (site setup actions). */
 export const ADMIN_SETUP_GATE_COOKIE = 'admin_setup_gate';
 export const ADMIN_SESSION_COOKIE = 'admin_session';
 export const ADMIN_REFRESH_COOKIE = 'admin_refresh_token';
+
+function getJwtSecret(): string | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || !secret.trim()) {
+    return null;
+  }
+  return secret;
+}
 
 function safeReturnPath(raw: string | undefined): string {
   if (!raw || typeof raw !== 'string') return '/';
@@ -40,9 +49,16 @@ export function resolveSetupUnlockGate(
   const token = cookies[ADMIN_SETUP_GATE_COOKIE];
   if (token) {
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as { setup?: boolean };
-      if (payload.setup === true) {
-        return { redirect: { destination: safe, permanent: false } };
+      const secret = getJwtSecret();
+      if (!secret) {
+        reportError(new Error('JWT_SECRET is missing while resolving setup gate'), {
+          source: 'resolveSetupUnlockGate',
+        });
+      } else {
+        const payload = jwt.verify(token, secret) as { setup?: boolean };
+        if (payload.setup === true) {
+          return { redirect: { destination: safe, permanent: false } };
+        }
       }
     } catch {
       // invalid / expired — show unlock form
@@ -71,7 +87,15 @@ export function assertSetupGateAllowed(req: NextApiRequest, res: NextApiResponse
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as { setup?: boolean };
+    const secret = getJwtSecret();
+    if (!secret) {
+      reportError(new Error('JWT_SECRET is missing while asserting setup gate'), {
+        source: 'assertSetupGateAllowed',
+      });
+      res.status(500).json({ message: 'Server configuration error: JWT_SECRET is missing.' });
+      return false;
+    }
+    const payload = jwt.verify(token, secret) as { setup?: boolean };
     if (payload.setup !== true) {
       throw new Error('Invalid setup gate');
     }
@@ -219,7 +243,16 @@ export function requireSetupPassword(
     }
 
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as { setup?: boolean };
+      const secret = getJwtSecret();
+      if (!secret) {
+        reportError(new Error('JWT_SECRET is missing while requiring setup password'), {
+          source: 'requireSetupPassword',
+          resolvedUrl: context.resolvedUrl,
+        });
+        const dest = `/setup-unlock?returnUrl=${encodeURIComponent(safeReturnPath(context.resolvedUrl))}`;
+        return { redirect: { destination: dest, permanent: false } };
+      }
+      const payload = jwt.verify(token, secret) as { setup?: boolean };
       if (payload.setup !== true) {
         throw new Error('Invalid setup gate token');
       }

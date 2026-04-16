@@ -21,6 +21,11 @@ export type BlogBody = {
 export function buildBlogRow(siteId: string, body: BlogBody) {
   const now = new Date().toISOString();
   const status = body.status === 'draft' ? 'draft' : 'published';
+  const parsedDisplayDate = new Date(body.display_date);
+  if (Number.isNaN(parsedDisplayDate.getTime())) {
+    throw new Error('Invalid display_date format');
+  }
+
   return {
     site_id: siteId,
     title: body.title,
@@ -29,7 +34,7 @@ export function buildBlogRow(siteId: string, body: BlogBody) {
     meta_title: body.meta_title ?? '',
     description: body.description ?? '',
     meta_description: body.meta_description ?? '',
-    display_date: new Date(body.display_date).toISOString(),
+    display_date: parsedDisplayDate.toISOString(),
     cover_image_url: body.cover_image_url ?? '',
     content: body.content ?? '',
     author_name: body.author_name ?? null,

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
 import { Lock, Mail, Loader2 } from 'lucide-react';
+import { reportError } from '@/lib/monitoring';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Valid email is required' }),
@@ -29,9 +30,11 @@ export default function Login() {
     
     try {
       await axios.post('/api/login', data);
-      router.push('/');
+      await router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid login credentials');
+      reportError(err, { source: 'Login.onSubmit', email: data.email });
+      setError(err?.response?.data?.message || err?.message || 'Invalid login credentials');
+    } finally {
       setIsLoading(false);
     }
   };

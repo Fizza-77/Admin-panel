@@ -57,7 +57,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 });
 
 export default function EditSiteBlog({ site, blog }: EditSiteBlogPageProps) {
-  if (!blog) {
+  if (!blog || !site?.id) {
     return (
       <AdminLayout>
         <div className="flex justify-center items-center h-full">
@@ -70,7 +70,7 @@ export default function EditSiteBlog({ site, blog }: EditSiteBlogPageProps) {
   return (
     <AdminLayout>
       <Head>
-        <title>Edit {blog.title} - {site.name || site.domain || site.site_key}</title>
+        <title>{`Edit ${blog.title || 'Blog'} - ${site.name || site.domain || site.site_key || 'Site'}`}</title>
       </Head>
       <BlogForm initialData={blog} isEdit={true} siteId={site.id} />
     </AdminLayout>

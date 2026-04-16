@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { LayoutDashboard, Link2, LogOut } from 'lucide-react';
 import axios from 'axios';
 import { setupUnlockHref } from '@/lib/setup';
+import { reportError } from '@/lib/monitoring';
 
 export default function Sidebar() {
   const router = useRouter();
@@ -10,9 +11,9 @@ export default function Sidebar() {
   const handleLogout = async () => {
     try {
       await axios.post('/api/logout');
-      router.push('/login');
+      await router.push('/login');
     } catch (e) {
-      console.error(e);
+      reportError(e, { source: 'Sidebar.handleLogout' });
     }
   };
 
