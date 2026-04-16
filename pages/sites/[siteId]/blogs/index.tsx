@@ -6,11 +6,13 @@ import { useState } from 'react';
 import { requireAuthentication } from '@/lib/auth';
 import { setupUnlockHref } from '@/lib/setup';
 import AdminLayout from '@/components/Layout/AdminLayout';
+import BlogReactions from '@/components/BlogReactions';
 import { supabase } from '@/lib/supabase/server';
 import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Site } from '@/types/site';
 import { reportError } from '@/lib/monitoring';
+import { EMPTY_REACTION_COUNTS, toReactionCounts, type ReactionCounts } from '@/lib/blogs/reactions';
 
 type Blog = {
   id: string;
@@ -25,6 +27,7 @@ type Blog = {
 interface SiteBlogsPageProps {
   site: Site;
   blogs: Blog[];
+  reactionCountsByBlog: Record<string, ReactionCounts>;
 }
 
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
@@ -50,15 +53,42 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
     console.error('Error fetching blogs:', blogsError);
   }
 
+  const safeBlogs = Array.isArray(blogs) ? blogs : [];
+  const blogIds = safeBlogs.map((blog) => blog.id).filter(Boolean);
+  const reactionCountsByBlog: Record<string, ReactionCounts> = {};
+
+  if (blogIds.length > 0) {
+    const { data: reactionRows, error: reactionError } = await supabase
+      .from('blog_reaction_counts')
+      .select('blog_id,love,thumbs_up,thumbs_down,celebrationpop,clap')
+      .in('blog_id', blogIds);
+
+    if (reactionError) {
+      console.error('Error fetching reaction counts:', reactionError);
+    }
+
+    for (const blogId of blogIds) {
+      reactionCountsByBlog[blogId] = { ...EMPTY_REACTION_COUNTS };
+    }
+
+    for (const row of reactionRows ?? []) {
+      const id = row?.blog_id;
+      if (typeof id === 'string' && reactionCountsByBlog[id]) {
+        reactionCountsByBlog[id] = toReactionCounts(row as Partial<Record<keyof ReactionCounts, number>>);
+      }
+    }
+  }
+
   return {
     props: {
       site,
-      blogs: blogs ?? [],
+      blogs: safeBlogs,
+      reactionCountsByBlog,
     },
   };
 });
 
-export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
+export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog }: SiteBlogsPageProps) {
   const router = useRouter();
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -206,6 +236,7 @@ export default function SiteBlogsPage({ site, blogs }: SiteBlogsPageProps) {
                 <p className="text-sm text-gray-600 line-clamp-3 mb-4 flex-1">
                   {blog.description || 'No description provided.'}
                 </p>
+                <BlogReactions blogId={blog.id} initialCounts={reactionCountsByBlog?.[blog.id]} interactive={false} />
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-4 border-t border-gray-100 mt-auto">
                   <a
                     href={site.domain ? `https://${site.domain}/blog/${blog.slug}` : '#'}

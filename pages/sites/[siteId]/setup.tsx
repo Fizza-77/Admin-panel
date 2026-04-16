@@ -323,8 +323,9 @@ const { data: blogs } = await supabase
         <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-amber-900 mb-2">F. Local Development Note</h2>
           <p className="text-sm text-amber-800">
-            For localhost development, hardcode `site_key` in your frontend config. Domain-based lookup is no longer
-            required in the admin flow.
+            For localhost development, hardcode `site_key` in your frontend config. If Supabase RLS blocks the
+            `sites` lookup, set `SITE_ID` or `NEXT_PUBLIC_SITE_ID` locally to skip the tenant lookup entirely.
+            Domain-based lookup is no longer required in the admin flow.
           </p>
         </section>
       </div>

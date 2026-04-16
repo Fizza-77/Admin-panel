@@ -36,7 +36,11 @@ export default function CreateSiteBlog({ site }: CreateSiteBlogPageProps) {
       <Head>
         <title>Create Blog - {site.name || site.domain || site.site_key}</title>
       </Head>
-      <BlogForm isEdit={false} siteId={site.id} />
+      <BlogForm
+        isEdit={false}
+        siteId={site.id}
+        siteName={site.name || site.domain || site.site_key}
+      />
     </AdminLayout>
   );
 }

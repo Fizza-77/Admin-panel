@@ -50,7 +50,50 @@ export async function getBlogsForSite(siteId: string) {
 }
 ```
 
-## 4) Recommended server-side API pattern (Next.js)
+## 4) SSR reactions pattern (Next.js)
+
+Fetch reaction counts on the server during `getServerSideProps`, not in the browser and not with static generation.
+
+```ts
+import { getBlogIndexPageDataWithReactions } from '@/lib/blogs';
+
+export const getServerSideProps = async () => {
+  const supabase = createPublicSupabase();
+  const siteKey = process.env.SITE_KEY;
+  const adminApiBaseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE_URL;
+
+  if (!siteKey || !adminApiBaseUrl) {
+    throw new Error('Missing SITE_KEY or NEXT_PUBLIC_ADMIN_API_BASE_URL');
+  }
+
+  const data = await getBlogIndexPageDataWithReactions(supabase, siteKey, adminApiBaseUrl);
+
+  return {
+    props: {
+      ...data,
+    },
+  };
+};
+```
+
+If you only need counts for one post:
+
+```ts
+import { getReactionCountsForBlog } from '@/lib/blogs';
+
+export const getServerSideProps = async () => {
+  const adminApiBaseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE_URL!;
+  const reactionState = await getReactionCountsForBlog(adminApiBaseUrl, blogId);
+
+  return {
+    props: {
+      reactionState,
+    },
+  };
+};
+```
+
+## 5) Recommended server-side API pattern (Next.js)
 
 ```ts
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -71,6 +114,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 ```
+
+## Localhost troubleshooting
+
+If your local site is not fetching blog data from Supabase:
+
+1. Set a stable `SITE_KEY` in the local app `.env.local`.
+2. If you do not want anon to read `sites`, set `SITE_ID` or `NEXT_PUBLIC_SITE_ID` to skip the lookup.
+3. If you are using the admin API from localhost, make sure the origin is allowed by `middleware.ts`.
+4. Restart the dev server after changing env vars.
+5. Confirm the Supabase RLS policies for `sites`, `blogs`, and `blog_categories` match the path you are using.
 
 ## Row Level Security (RLS)
 

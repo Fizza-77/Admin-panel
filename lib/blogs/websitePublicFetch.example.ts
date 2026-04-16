@@ -1,8 +1,9 @@
 /**
  * Copy these helpers into your public website (e.g. Make My Lesson).
  * They use the anon Supabase client and assume RLS allows SELECT on `sites`, `blogs`, and `blog_categories`.
+ * Reaction counts are fetched server-side from the admin API, not statically or in the browser.
  *
- * Env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SITE_KEY (or SITE_ID / NEXT_PUBLIC_SITE_ID).
+ * Env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SITE_KEY (or SITE_ID / NEXT_PUBLIC_SITE_ID), NEXT_PUBLIC_ADMIN_API_BASE_URL.
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -35,6 +36,23 @@ export type BlogPostRow = {
   display_date: string;
   cover_image_url: string | null;
   category_id: string | null;
+};
+
+export type ReactionType = 'love' | 'thumbs_up' | 'thumbs_down' | 'celebrationpop' | 'clap';
+
+export type ReactionCounts = Record<ReactionType, number>;
+
+export const EMPTY_REACTION_COUNTS: ReactionCounts = {
+  love: 0,
+  thumbs_up: 0,
+  thumbs_down: 0,
+  celebrationpop: 0,
+  clap: 0,
+};
+
+export type BlogReactionState = {
+  counts: ReactionCounts;
+  userReaction: ReactionType | null;
 };
 
 export function createPublicSupabase() {
@@ -123,6 +141,46 @@ export async function getBlogsForSite(supabase: SupabaseClient, siteId: string):
   }));
 }
 
+export async function getReactionCountsForBlog(adminApiBaseUrl: string, blogId: string): Promise<BlogReactionState> {
+  const response = await fetch(`${adminApiBaseUrl}/api/public/blogs/${blogId}/reactions`, {
+    method: 'GET',
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    return {
+      counts: { ...EMPTY_REACTION_COUNTS },
+      userReaction: null,
+    };
+  }
+
+  const body = (await response.json().catch(() => ({}))) as Partial<BlogReactionState>;
+  const counts = body?.counts ?? EMPTY_REACTION_COUNTS;
+
+  return {
+    counts: {
+      love: Number(counts.love ?? 0),
+      thumbs_up: Number(counts.thumbs_up ?? 0),
+      thumbs_down: Number(counts.thumbs_down ?? 0),
+      celebrationpop: Number(counts.celebrationpop ?? 0),
+      clap: Number(counts.clap ?? 0),
+    },
+    userReaction: body?.userReaction ?? null,
+  };
+}
+
+export async function getReactionCountsForBlogs(adminApiBaseUrl: string, blogIds: string[]) {
+  const uniqueBlogIds = Array.from(new Set((Array.isArray(blogIds) ? blogIds : []).filter(Boolean)));
+  const entries = await Promise.all(
+    uniqueBlogIds.map(async (blogId) => {
+      const state = await getReactionCountsForBlog(adminApiBaseUrl, blogId);
+      return [blogId, state] as const;
+    }),
+  );
+
+  return Object.fromEntries(entries) as Record<string, BlogReactionState>;
+}
+
 /** Convenience: resolve SITE_KEY → siteId → copy + categories + posts */
 export async function getBlogIndexPageData(supabase: SupabaseClient, siteKey: string) {
   const siteId = await getSiteIdByKey(supabase, siteKey);
@@ -132,4 +190,22 @@ export async function getBlogIndexPageData(supabase: SupabaseClient, siteKey: st
     getBlogsForSite(supabase, siteId),
   ]);
   return { siteId, copy, categories, blogs };
+}
+
+/** Convenience: resolve SITE_KEY → siteId → copy + categories + posts + SSR reaction counts */
+export async function getBlogIndexPageDataWithReactions(
+  supabase: SupabaseClient,
+  siteKey: string,
+  adminApiBaseUrl: string,
+) {
+  const base = await getBlogIndexPageData(supabase, siteKey);
+  const reactionCountsByBlog = await getReactionCountsForBlogs(
+    adminApiBaseUrl,
+    base.blogs.map((blog) => blog.id),
+  );
+
+  return {
+    ...base,
+    reactionCountsByBlog,
+  };
 }

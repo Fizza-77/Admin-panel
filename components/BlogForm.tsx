@@ -18,6 +18,7 @@ interface BlogFormProps {
   initialData?: any;
   isEdit?: boolean;
   siteId: string;
+  siteName?: string;
 }
 
 const getTodayDateInputValue = () => new Date().toISOString().split('T')[0];
@@ -35,6 +36,7 @@ export default function BlogForm({
   initialData = null,
   isEdit = false,
   siteId,
+  siteName,
 }: BlogFormProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -242,7 +244,14 @@ export default function BlogForm({
     <form onSubmit={handleSubmit((data) => onSubmit(data, 'published'))} className="space-y-6 sm:space-y-8 w-full max-w-5xl">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl shadow-sm tracking-wide sticky top-0 z-10 border border-gray-200 border-b">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg sm:text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
+            {siteName && (
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Website: <span className="font-semibold text-gray-800">{siteName}</span>
+              </p>
+            )}
+          </div>
           {initialData?.status === 'draft' && (
             <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
               Draft
