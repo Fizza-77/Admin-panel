@@ -1,15 +1,22 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { assertSetupGateAllowed, verifyAdminSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase/server';
+import { listSites } from '@/lib/sites';
 
 type SuccessResponse = {
   success: true;
-  site: {
+  site?: {
     id: string;
     name: string | null;
     domain: string;
     site_key: string;
   };
+  sites?: Array<{
+    id: string;
+    name: string | null;
+    domain: string;
+    site_key: string;
+  }>;
 };
 
 type ErrorResponse = {
@@ -22,15 +29,27 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>,
 ) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ message: 'Method Not Allowed' });
-  }
-
   const auth = await verifyAdminSession(req, res);
   if (!auth.ok) {
     return res.status(401).json({ message: auth.message });
   }
+
+  if (req.method === 'GET') {
+    const { sites, error } = await listSites();
+
+    if (error) {
+      console.error('Error loading sites:', error);
+      return res.status(500).json({ message: 'Failed to load sites' });
+    }
+
+    return res.status(200).json({ success: true, sites });
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', ['GET', 'POST']);
+    return res.status(405).json({ message: 'Method Not Allowed' });
+  }
+
   if (!assertSetupGateAllowed(req, res)) {
     return;
   }

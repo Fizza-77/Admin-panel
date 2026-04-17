@@ -2,13 +2,11 @@ import Head from 'next/head';
 import { requireAuthentication } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import SitesList from '@/components/SitesList';
-import { supabase } from '@/lib/supabase/server';
+import { listSites } from '@/lib/sites';
 import type { Site } from '@/types/site';
 
 export const getServerSideProps = requireAuthentication(async () => {
-  const { data: sites, error } = await supabase.from('sites').select('id,name,domain,site_key').order('created_at', {
-    ascending: true,
-  });
+  const { sites, error } = await listSites();
 
   if (error) {
     console.error('Error loading sites for dashboard:', error);
@@ -16,7 +14,7 @@ export const getServerSideProps = requireAuthentication(async () => {
 
   return {
     props: {
-      sites: sites ?? [],
+      sites,
     },
   };
 });
