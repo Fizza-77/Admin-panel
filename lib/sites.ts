@@ -14,14 +14,18 @@ export async function listSites(): Promise<{ sites: Site[]; error: PostgrestErro
     .order('created_at', { ascending: true });
 
   if (!orderedByCreatedAt.error) {
-    return { sites: orderedByCreatedAt.data ?? [], error: null };
+    const sites = orderedByCreatedAt.data ?? [];
+    console.log(`Loaded ${sites.length} sites (${sites.filter(s => s.site_key).length} connected)`);
+    return { sites, error: null };
   }
 
   // Some older databases may not have `created_at`; gracefully fall back.
   if (isMissingCreatedAt(orderedByCreatedAt.error)) {
     const fallback = await supabase.from('sites').select('id,name,domain,site_key').order('id', { ascending: true });
+    const sites = fallback.data ?? [];
+    console.log(`Loaded ${sites.length} sites via fallback (${sites.filter(s => s.site_key).length} connected)`);
     return {
-      sites: fallback.data ?? [],
+      sites,
       error: fallback.error,
     };
   }

@@ -1,8 +1,9 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import Router from 'next/router';
 import { GetServerSidePropsContext } from 'next';
 import { useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Trash2 } from 'lucide-react';
 import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
@@ -52,6 +53,8 @@ export default function SiteSetupPage({ site, supabaseUrl, supabaseAnonKey }: Si
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
   const [copied, setCopied] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const integrationSnippet = `const SITE_KEY = "${formData.site_key || site.site_key}";
 
@@ -126,6 +129,32 @@ const { data: blogs } = await supabase
       setSaveError(requestError?.message || 'Failed to update site');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onDelete = async () => {
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/sites/${site.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.message || 'Failed to delete site');
+      }
+
+      // Redirect to sites list after successful deletion
+      Router.push('/sites');
+    } catch (requestError: any) {
+      reportError(requestError, { source: 'SiteSetupPage.onDelete', siteId: site?.id ?? null });
+      alert(requestError?.message || 'Failed to delete site');
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -320,15 +349,59 @@ const { data: blogs } = await supabase
           </pre>
         </section>
 
-        <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 sm:p-6">
-          <h2 className="text-lg font-semibold text-amber-900 mb-2">F. Local Development Note</h2>
+        <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">F. Local Development Note</h2>
           <p className="text-sm text-amber-800">
             For localhost development, hardcode `site_key` in your frontend config. If Supabase RLS blocks the
             `sites` lookup, set `SITE_ID` or `NEXT_PUBLIC_SITE_ID` locally to skip the tenant lookup entirely.
             Domain-based lookup is no longer required in the admin flow.
           </p>
         </section>
+
+        <section className="bg-red-50 border border-red-200 rounded-xl p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-red-900 mb-2">G. Delete Site</h2>
+          <p className="text-sm text-red-800 mb-4">
+            This action will permanently delete this site and all associated blog posts. This cannot be undone.
+          </p>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleting}
+            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deleting ? 'Deleting...' : 'Delete Site'}
+          </button>
+        </section>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <h2 className="text-lg font-bold text-red-900 mb-2">Delete Site?</h2>
+            <p className="text-sm text-gray-700 mb-4">
+              This will permanently delete <strong>{site.name || site.site_key}</strong> and all {site.id && 'associated'} blog posts.
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

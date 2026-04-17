@@ -29,8 +29,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>,
 ) {
-  if (req.method !== 'PATCH') {
-    res.setHeader('Allow', ['PATCH']);
+  if (req.method !== 'PATCH' && req.method !== 'DELETE') {
+    res.setHeader('Allow', ['PATCH', 'DELETE']);
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
@@ -47,6 +47,22 @@ export default async function handler(
     return res.status(400).json({ message: 'Invalid site id' });
   }
 
+  // Handle DELETE request
+  if (req.method === 'DELETE') {
+    const { error: deleteError } = await supabase.from('sites').delete().eq('id', siteId);
+
+    if (deleteError) {
+      console.error('Error deleting site:', deleteError);
+      return res.status(500).json({ message: 'Failed to delete site' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Site and all associated data deleted successfully',
+    } as any);
+  }
+
+  // Handle PATCH request (update)
   const body = req.body ?? {};
   const { name, domain, site_key } = body;
   if (!site_key || typeof site_key !== 'string') {

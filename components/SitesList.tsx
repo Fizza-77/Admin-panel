@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, ExternalLink, Globe2 } from 'lucide-react';
+import { ArrowRight, ExternalLink, Globe2, AlertCircle } from 'lucide-react';
 import { setupUnlockHref } from '@/lib/setup';
 import type { Site } from '@/types/site';
 
@@ -9,6 +9,7 @@ interface SitesListProps {
 
 export default function SitesList({ sites }: SitesListProps) {
   const connectedSites = sites.filter((site) => site.site_key && site.site_key.trim().length > 0);
+  const incompletesSites = sites.filter((site) => !site.site_key || !site.site_key.trim().length);
 
   return (
     <>
@@ -81,6 +82,51 @@ export default function SitesList({ sites }: SitesListProps) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Incomplete sites (missing site_key) */}
+      {incompletesSites.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-amber-900 mb-4 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            Incomplete Sites (missing site_key)
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {incompletesSites.map((site) => (
+              <div
+                key={site.id}
+                className="bg-amber-50 rounded-2xl shadow-sm border border-amber-200 p-6 flex flex-col hover:shadow-md transition"
+              >
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-amber-900">
+                      {site.name || site.domain || 'Unnamed Site'}
+                    </h3>
+                    <p className="text-sm text-amber-800 mt-1">{site.domain || 'No domain configured'}</p>
+                    <p className="text-xs text-amber-700 mt-2 bg-amber-100 inline-block px-2 py-1 rounded">
+                      ⚠️ Missing site_key
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-amber-200">
+                  <Link
+                    href={setupUnlockHref(`/sites/${site.id}/setup`)}
+                    className="w-full text-center bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm"
+                  >
+                    Complete Setup
+                  </Link>
+                </div>
+
+                <div className="mt-3 text-xs text-amber-700">
+                  <p>
+                    Complete the setup to assign a <code className="font-mono bg-amber-100 px-1 rounded">site_key</code> and activate this site.
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </>
