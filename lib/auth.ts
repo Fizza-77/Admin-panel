@@ -3,6 +3,7 @@ import { GetServerSidePropsContext } from 'next';
 import nookies from 'nookies';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/server';
 import { reportError } from '@/lib/monitoring';
 
@@ -10,6 +11,26 @@ import { reportError } from '@/lib/monitoring';
 export const ADMIN_SETUP_GATE_COOKIE = 'admin_setup_gate';
 export const ADMIN_SESSION_COOKIE = 'admin_session';
 export const ADMIN_REFRESH_COOKIE = 'admin_refresh_token';
+
+function getAuthSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    reportError(new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY for auth client'), {
+      source: 'auth.getAuthSupabaseClient',
+    });
+    return null;
+  }
+
+  // Keep auth/session checks isolated from the shared service-role DB client.
+  return createClient(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
 
 function getJwtSecret(): string | null {
   const secret = process.env.JWT_SECRET;
@@ -112,10 +133,15 @@ export function verifyAdminSession(
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const accessToken = req.cookies[ADMIN_SESSION_COOKIE];
   const refreshToken = req.cookies[ADMIN_REFRESH_COOKIE];
+  const authSupabase = getAuthSupabaseClient();
 
   const verifyOrRefresh = async () => {
+    if (!authSupabase) {
+      return { ok: false, message: 'Unauthorized' } as const;
+    }
+
     if (accessToken) {
-      const { data, error } = await supabase.auth.getUser(accessToken);
+      const { data, error } = await authSupabase.auth.getUser(accessToken);
       if (!error && data.user) {
         return { ok: true } as const;
       }
@@ -127,7 +153,7 @@ export function verifyAdminSession(
       return { ok: false, message: 'Unauthorized' } as const;
     }
 
-    const { data, error } = await supabase.auth.refreshSession({
+    const { data, error } = await authSupabase.auth.refreshSession({
       refresh_token: refreshToken,
     });
 
@@ -166,6 +192,7 @@ export function requireAuthentication(gssp: any) {
     const cookies = nookies.get(context);
     const token = cookies[ADMIN_SESSION_COOKIE];
     const refreshToken = cookies[ADMIN_REFRESH_COOKIE];
+    const authSupabase = getAuthSupabaseClient();
 
     if (!token && !refreshToken) {
       return {
@@ -178,13 +205,13 @@ export function requireAuthentication(gssp: any) {
 
     let isAuthed = false;
 
-    if (token) {
-      const { data, error } = await supabase.auth.getUser(token);
+    if (token && authSupabase) {
+      const { data, error } = await authSupabase.auth.getUser(token);
       isAuthed = !error && Boolean(data.user);
     }
 
-    if (!isAuthed && refreshToken) {
-      const { data, error } = await supabase.auth.refreshSession({
+    if (!isAuthed && refreshToken && authSupabase) {
+      const { data, error } = await authSupabase.auth.refreshSession({
         refresh_token: refreshToken,
       });
 
