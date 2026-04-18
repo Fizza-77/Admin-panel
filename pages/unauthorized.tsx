@@ -1,0 +1,62 @@
+import Head from 'next/head';
+import Link from 'next/link';
+import { getAuthUserFromGsspContext, requireAuthentication } from '@/lib/auth';
+import AdminLayout from '@/components/Layout/AdminLayout';
+import { getAppProfile } from '@/lib/permissions/getAppProfile';
+import type { AppPermissions } from '@/lib/permissions/types';
+import type { GetServerSidePropsContext } from 'next';
+
+export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+  const user = await getAuthUserFromGsspContext(context);
+  if (!user) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+  const permissions = await getAppProfile(user.id, user.email);
+  return { props: { permissions } };
+});
+
+export default function UnauthorizedPage({ permissions }: { permissions: AppPermissions }) {
+  return (
+    <AdminLayout permissions={permissions}>
+      <Head>
+        <title>Access restricted - Skyen Admin</title>
+      </Head>
+      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-6 shadow-sm max-w-lg">
+        <h1 className="text-lg font-semibold text-slate-900">No access yet</h1>
+        <p className="mt-2 text-slate-700">
+          You are signed in, but your account does not have permission to use the blog or task areas yet. Ask an admin to
+          grant access, or open user management if you administer accounts.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          {permissions.canAccessUserManagement && (
+            <Link
+              href="/admin/users"
+              className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+            >
+              User management
+            </Link>
+          )}
+          {permissions.canManageBlogs && (
+            <Link
+              href="/"
+              className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+            >
+              Blog dashboard
+            </Link>
+          )}
+          {permissions.canManageTasks && (
+            <Link
+              href="/tasks"
+              className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+            >
+              Tasks
+            </Link>
+          )}
+          <Link href="/login" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Sign in again
+          </Link>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+}

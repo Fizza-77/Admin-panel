@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { serialize } from 'cookie';
 import { createClient } from '@supabase/supabase-js';
 import { ADMIN_REFRESH_COOKIE, ADMIN_SESSION_COOKIE } from '@/lib/auth';
+import { supabase as supabaseAdmin } from '@/lib/supabase/server';
+import { isBootstrapOwnerEmail } from '@/lib/permissions/getAppProfile';
+import { reportError } from '@/lib/monitoring';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -30,10 +33,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
-  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
-    return res.status(403).json({ message: 'This email is not allowed to access the admin panel' });
-  }
-
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false },
   });
@@ -43,8 +42,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     password: submittedPassword,
   });
 
-  if (error || !data.session?.access_token || !data.session.refresh_token) {
+  if (error || !data.session?.access_token || !data.session.refresh_token || !data.user?.id) {
     return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
+    if (!isBootstrapOwnerEmail(normalizedEmail)) {
+      const { count, error: profileError } = await supabaseAdmin
+        .from('app_profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', data.user.id);
+
+      if (profileError) {
+        reportError(profileError, { source: 'login.app_profiles', userId: data.user.id });
+        await supabaseAdmin.auth.admin.signOut(data.session.access_token);
+        return res.status(500).json({ message: 'Could not verify access' });
+      }
+
+      if (!count) {
+        await supabaseAdmin.auth.admin.signOut(data.session.access_token);
+        return res.status(403).json({ message: 'This email is not allowed to access the admin panel' });
+      }
+    }
   }
 
   res.setHeader(

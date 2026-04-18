@@ -1,0 +1,193 @@
+import Head from 'next/head';
+import { useState } from 'react';
+import type { GetServerSidePropsContext } from 'next';
+import { getAuthUserFromGsspContext, requireAuthentication } from '@/lib/auth';
+import AdminLayout from '@/components/Layout/AdminLayout';
+import { getAppProfile } from '@/lib/permissions/getAppProfile';
+import type { AppPermissions } from '@/lib/permissions/types';
+import { Loader2 } from 'lucide-react';
+import { reportError } from '@/lib/monitoring';
+
+export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+  const user = await getAuthUserFromGsspContext(context);
+  if (!user) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+  const permissions = await getAppProfile(user.id, user.email);
+  return { props: { permissions } };
+});
+
+export default function SettingsPage({ permissions }: { permissions: AppPermissions }) {
+  const [name, setName] = useState(permissions.displayName ?? '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<string | null>(null);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    setError(null);
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: name.trim() || null }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message || 'Could not save');
+      }
+      setMessage('Saved. Refresh the page to see your name everywhere.');
+      if (typeof body.display_name === 'string' || body.display_name === null) {
+        setName(body.display_name ?? '');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not save');
+      reportError(err, { source: 'SettingsPage.save' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwMessage(null);
+    setPwError(null);
+    if (newPassword.length < 8) {
+      setPwError('New password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError('New password and confirmation do not match.');
+      return;
+    }
+    setPwSaving(true);
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message || 'Could not update password');
+      }
+      setPwMessage('Password updated.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: unknown) {
+      setPwError(err instanceof Error ? err.message : 'Could not update password');
+      reportError(err, { source: 'SettingsPage.changePassword' });
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  return (
+    <AdminLayout permissions={permissions}>
+      <Head>
+        <title>Profile - Skyen Admin</title>
+      </Head>
+      <div className="max-w-lg">
+        <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
+        <p className="mt-1 text-slate-600 text-sm">
+          Your email is <span className="font-medium text-slate-800">{permissions.accountEmail ?? '—'}</span> (sign-in
+          identity). Set a display name for tasks and the header.
+        </p>
+        <form onSubmit={(e) => void save(e)} className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Display name</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={120}
+              placeholder="e.g. Alex Morgan"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <span className="mt-1 block text-xs text-slate-500">Shown instead of email where possible. Leave empty to use email.</span>
+          </label>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {message && <p className="text-sm text-emerald-700">{message}</p>}
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save
+          </button>
+        </form>
+
+        <form
+          onSubmit={(e) => void changePassword(e)}
+          className="mt-8 space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <h2 className="text-sm font-semibold text-slate-900">Change password</h2>
+          <p className="text-xs text-slate-500">
+            Enter your current password, then choose a new one (at least 8 characters).
+          </p>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Current password</span>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">New password</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={8}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Confirm new password</span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={8}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+          </label>
+          {pwError && <p className="text-sm text-red-600">{pwError}</p>}
+          {pwMessage && <p className="text-sm text-emerald-700">{pwMessage}</p>}
+          <button
+            type="submit"
+            disabled={pwSaving}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {pwSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Update password
+          </button>
+        </form>
+      </div>
+    </AdminLayout>
+  );
+}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
@@ -11,12 +11,16 @@ import type { BlogCategory } from '@/types/blogCategory';
 import { Loader2, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { reportError } from '@/lib/monitoring';
 
+import type { AppPermissions } from '@/lib/permissions/types';
+
 interface PageProps {
   site: Site;
   categories: BlogCategory[];
+  permissions: AppPermissions;
 }
 
-export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+export const getServerSideProps = requireAuthentication(
+  requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
   const { siteId } = context.params as { siteId: string };
 
   const { data: site, error } = await supabase
@@ -41,11 +45,12 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
       categories: categories ?? [],
     },
   };
-});
+  }),
+);
 
 const SLUG_HINT = /^[a-z0-9-]+$/;
 
-export default function SiteCategoriesPage({ site, categories: initialCategories }: PageProps) {
+export default function SiteCategoriesPage({ site, categories: initialCategories, permissions }: PageProps) {
   const router = useRouter();
   const [categories, setCategories] = useState(Array.isArray(initialCategories) ? initialCategories : []);
   const [slug, setSlug] = useState('');
@@ -145,7 +150,7 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout permissions={permissions}>
       <Head>
         <title>Blog categories - {site.name || site.site_key} | Admin</title>
       </Head>

@@ -3,23 +3,25 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { Lock, Loader2 } from 'lucide-react';
-import { requireAuthentication, resolveSetupUnlockGate } from '@/lib/auth';
+import { requireAuthentication, requirePermission, resolveSetupUnlockGate } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { GetServerSideProps, GetServerSidePropsContext } from 'next';
 import { reportError } from '@/lib/monitoring';
-
-// ✅ Fix: explicitly type the exported getServerSideProps
-export const getServerSideProps: GetServerSideProps = requireAuthentication(
-  async (context: GetServerSidePropsContext) => {
-    return resolveSetupUnlockGate(context);
-  }
-);
+import type { AppPermissions } from '@/lib/permissions/types';
 
 interface SetupUnlockPageProps {
   returnUrl?: string;
+  permissions: AppPermissions;
 }
 
-export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnlockPageProps) {
+// ✅ Fix: explicitly type the exported getServerSideProps
+export const getServerSideProps: GetServerSideProps = requireAuthentication(
+  requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
+    return resolveSetupUnlockGate(context);
+  }),
+);
+
+export default function SetupUnlockPage({ returnUrl: returnUrlProp, permissions }: SetupUnlockPageProps) {
   const router = useRouter();
   const returnUrl =
     returnUrlProp ?? (typeof router.query.returnUrl === 'string' ? router.query.returnUrl : '/');
@@ -48,7 +50,7 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp }: SetupUnloc
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout permissions={permissions}>
       <Head>
         <title>Setup password - Blog Admin</title>
       </Head>

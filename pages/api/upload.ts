@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import formidable, { File } from 'formidable';
 import fs from 'fs';
 import { uploadImage } from '@/lib/cloudinary';
+import { requireApiPermission } from '@/lib/permissions/apiGuard';
 
 export const config = {
   api: {
@@ -24,6 +25,11 @@ export default async function handler(
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const auth = await requireApiPermission(req, res, { blogs: true });
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.message });
   }
 
   const form = formidable({

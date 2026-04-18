@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GetServerSidePropsContext } from 'next';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, requirePermission } from '@/lib/auth';
 import { setupUnlockHref } from '@/lib/setup';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogReactions from '@/components/BlogReactions';
@@ -12,6 +12,7 @@ import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucid
 import { format } from 'date-fns';
 import type { Site } from '@/types/site';
 import { reportError } from '@/lib/monitoring';
+import type { AppPermissions } from '@/lib/permissions/types';
 import { EMPTY_REACTION_COUNTS, toReactionCounts, type ReactionCounts } from '@/lib/blogs/reactions';
 
 type Blog = {
@@ -28,9 +29,11 @@ interface SiteBlogsPageProps {
   site: Site;
   blogs: Blog[];
   reactionCountsByBlog: Record<string, ReactionCounts>;
+  permissions: AppPermissions;
 }
 
-export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+export const getServerSideProps = requireAuthentication(
+  requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
   const { siteId } = context.params as { siteId: string };
 
   const { data: site, error: siteError } = await supabase
@@ -86,9 +89,10 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
       reactionCountsByBlog,
     },
   };
-});
+  }),
+);
 
-export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog }: SiteBlogsPageProps) {
+export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog, permissions }: SiteBlogsPageProps) {
   const router = useRouter();
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -138,7 +142,7 @@ export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog }: Sit
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout permissions={permissions}>
       <Head>
         <title>Blogs - {site.name || site.domain || site.site_key} | Skyen Blog Admin</title>
       </Head>

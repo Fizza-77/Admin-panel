@@ -2,29 +2,34 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
+import { requireAuthentication, requirePermission, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { reportError } from '@/lib/monitoring';
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
 
+import type { AppPermissions } from '@/lib/permissions/types';
+
 interface ConnectSitePageProps {
   supabaseUrl: string;
   supabaseAnonKey: string;
+  permissions: AppPermissions;
 }
 
 export const getServerSideProps = requireAuthentication(
-  requireSetupPassword(async () => {
-    return {
-      props: {
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      },
-    };
-  }),
+  requireSetupPassword(
+    requirePermission({ blogs: true }, async () => {
+      return {
+        props: {
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+          supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+        },
+      };
+    }),
+  ),
 );
 
-export default function ConnectSitePage({ supabaseUrl, supabaseAnonKey }: ConnectSitePageProps) {
+export default function ConnectSitePage({ supabaseUrl, supabaseAnonKey, permissions }: ConnectSitePageProps) {
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
@@ -132,7 +137,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout permissions={permissions}>
       <Head>
         <title>Connect Site - Skyen Blog Admin</title>
       </Head>

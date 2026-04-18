@@ -1,8 +1,9 @@
 import { GetServerSidePropsContext } from 'next';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, requirePermission } from '@/lib/auth';
 import { findDefaultSite } from '@/lib/sites';
 
-export const getServerSideProps = requireAuthentication(async (_ctx: GetServerSidePropsContext) => {
+export const getServerSideProps = requireAuthentication(
+  requirePermission({ blogs: true }, async (_ctx: GetServerSidePropsContext) => {
   // Legacy route: redirect to the configured default site if present.
   const defaultSiteKey = process.env.DEFAULT_SITE_KEY || process.env.NEXT_PUBLIC_DEFAULT_SITE_KEY;
 
@@ -23,7 +24,8 @@ export const getServerSideProps = requireAuthentication(async (_ctx: GetServerSi
       permanent: false,
     },
   };
-});
+  }),
+);
 
 export default function LegacyCreateBlogRedirect() {
   return null;

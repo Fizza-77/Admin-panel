@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { assertSetupGateAllowed, verifyAdminSession } from '@/lib/auth';
+import { assertSetupGateAllowed } from '@/lib/auth';
+import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { supabase } from '@/lib/supabase/server';
 
 type SiteRecord = {
@@ -34,9 +35,9 @@ export default async function handler(
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const auth = await verifyAdminSession(req, res);
+  const auth = await requireApiPermission(req, res, { blogs: true });
   if (!auth.ok) {
-    return res.status(401).json({ message: auth.message });
+    return res.status(auth.status).json({ message: auth.message });
   }
   if (!assertSetupGateAllowed(req, res)) {
     return;

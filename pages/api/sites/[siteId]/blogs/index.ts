@@ -1,14 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { verifyAdminSession } from '@/lib/auth';
+import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
 import { supabase } from '@/lib/supabase/server';
 import { reportError } from '@/lib/monitoring';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const auth = await verifyAdminSession(req, res);
+    const auth = await requireApiPermission(req, res, { blogs: true });
     if (!auth.ok) {
-      return res.status(401).json({ message: auth.message });
+      return res.status(auth.status).json({ message: auth.message });
     }
 
     const siteId = req.query.siteId;

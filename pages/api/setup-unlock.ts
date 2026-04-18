@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
-import { verifyAdminSession, ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
+import { ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
+import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { reportError } from '@/lib/monitoring';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -10,9 +11,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const auth = await verifyAdminSession(req, res);
+  const auth = await requireApiPermission(req, res, { blogs: true });
   if (!auth.ok) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(auth.status).json({ message: auth.message });
   }
 
   const expected = process.env.ADMIN_SETUP_PASSWORD;

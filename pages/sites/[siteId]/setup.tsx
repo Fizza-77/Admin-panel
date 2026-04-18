@@ -4,22 +4,26 @@ import Router from 'next/router';
 import { GetServerSidePropsContext } from 'next';
 import { useState } from 'react';
 import { Copy, Check, Trash2 } from 'lucide-react';
-import { requireAuthentication, requireSetupPassword } from '@/lib/auth';
+import { requireAuthentication, requirePermission, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
 import type { Site } from '@/types/site';
 import { reportError } from '@/lib/monitoring';
 
+import type { AppPermissions } from '@/lib/permissions/types';
+
 interface SiteSetupPageProps {
   site: Site;
   supabaseUrl: string;
   supabaseAnonKey: string;
+  permissions: AppPermissions;
 }
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
 
 export const getServerSideProps = requireAuthentication(
-  requireSetupPassword(async (context: GetServerSidePropsContext) => {
+  requireSetupPassword(
+    requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
     const { siteId } = context.params as { siteId: string };
 
     const { data: site, error } = await supabase.from('sites').select('*').eq('id', siteId).single();
@@ -35,10 +39,11 @@ export const getServerSideProps = requireAuthentication(
         supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
       },
     };
-  }),
+    }),
+  ),
 );
 
-export default function SiteSetupPage({ site, supabaseUrl, supabaseAnonKey }: SiteSetupPageProps) {
+export default function SiteSetupPage({ site, supabaseUrl, supabaseAnonKey, permissions }: SiteSetupPageProps) {
   const [formData, setFormData] = useState({
     name: site.name || '',
     domain: site.domain || '',
@@ -159,7 +164,7 @@ const { data: blogs } = await supabase
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout permissions={permissions}>
       <Head>
         <title>Setup - {site.name || site.site_key} | Skyen Blog Admin</title>
       </Head>

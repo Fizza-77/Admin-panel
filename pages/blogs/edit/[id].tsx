@@ -1,8 +1,9 @@
 import { GetServerSidePropsContext } from 'next';
-import { requireAuthentication } from '@/lib/auth';
+import { requireAuthentication, requirePermission } from '@/lib/auth';
 import { supabase } from '@/lib/supabase/server';
 
-export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
+export const getServerSideProps = requireAuthentication(
+  requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
   const { id } = context.params as { id: string };
 
   const { data: blog, error } = await supabase
@@ -23,7 +24,8 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
       permanent: false,
     },
   };
-});
+  }),
+);
 
 export default function LegacyEditBlogRedirect() {
   return null;
