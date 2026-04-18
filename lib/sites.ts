@@ -19,20 +19,27 @@ export async function listSites(): Promise<{ sites: Site[]; error: PostgrestErro
     return { sites, error: null };
   }
 
-  // Some older databases may not have `created_at`; gracefully fall back.
-  if (isMissingCreatedAt(orderedByCreatedAt.error)) {
-    const fallback = await supabase.from('sites').select('id,name,domain,site_key').order('id', { ascending: true });
+  // Some older DBs may not have `created_at`, and some environments can briefly fail ordered queries.
+  // Retry with a simpler query so UI does not show a false "no connected sites" state.
+  const fallback = isMissingCreatedAt(orderedByCreatedAt.error)
+    ? await supabase.from('sites').select('id,name,domain,site_key').order('id', { ascending: true })
+    : await supabase.from('sites').select('id,name,domain,site_key');
+
+  if (!fallback.error) {
     const sites = fallback.data ?? [];
+    console.warn(
+      `Primary sites query failed and fallback succeeded: ${orderedByCreatedAt.error.message} (${orderedByCreatedAt.error.code})`,
+    );
     console.log(`Loaded ${sites.length} sites via fallback (${sites.filter(s => s.site_key).length} connected)`);
     return {
       sites,
-      error: fallback.error,
+      error: null,
     };
   }
 
   return {
     sites: [],
-    error: orderedByCreatedAt.error,
+    error: fallback.error,
   };
 }
 

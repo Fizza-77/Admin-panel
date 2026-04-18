@@ -5,9 +5,10 @@ import type { Site } from '@/types/site';
 
 interface SitesListProps {
   sites: Site[];
+  hasLoadError?: boolean;
 }
 
-export default function SitesList({ sites }: SitesListProps) {
+export default function SitesList({ sites, hasLoadError = false }: SitesListProps) {
   const connectedSites = sites.filter((site) => site.site_key && site.site_key.trim().length > 0);
   const incompletesSites = sites.filter((site) => !site.site_key || !site.site_key.trim().length);
 
@@ -27,7 +28,13 @@ export default function SitesList({ sites }: SitesListProps) {
         </Link>
       </div>
 
-      {connectedSites.length === 0 ? (
+      {hasLoadError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Could not load sites right now. Please refresh the page and check server logs if this keeps happening.
+        </div>
+      )}
+
+      {connectedSites.length === 0 && !hasLoadError ? (
         <div className="bg-white rounded-2xl border border-slate-200 border-dashed py-12 sm:py-16 px-5 sm:px-6 text-center shadow-sm">
           <Globe2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="text-slate-700 mb-2 font-semibold">No connected sites yet</p>
@@ -36,7 +43,7 @@ export default function SitesList({ sites }: SitesListProps) {
             first website.
           </p>
         </div>
-      ) : (
+      ) : connectedSites.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {connectedSites.map((site) => (
             <div
@@ -82,6 +89,14 @@ export default function SitesList({ sites }: SitesListProps) {
               </div>
             </div>
           ))}
+        </div>
+      ) : null}
+
+      {hasLoadError && sites.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 border-dashed py-12 sm:py-16 px-5 sm:px-6 text-center shadow-sm">
+          <Globe2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+          <p className="text-slate-700 mb-2 font-semibold">Sites are temporarily unavailable</p>
+          <p className="text-slate-500 text-sm">This is usually a temporary fetch issue, not an actual zero-sites state.</p>
         </div>
       )}
 

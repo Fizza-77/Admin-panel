@@ -7,6 +7,7 @@ import type { Site } from '@/types/site';
 
 interface SitesPageProps {
   sites: Site[];
+  hasSitesLoadError: boolean;
 }
 
 export const getServerSideProps = requireAuthentication(async () => {
@@ -19,18 +20,19 @@ export const getServerSideProps = requireAuthentication(async () => {
   return {
     props: {
       sites,
+      hasSitesLoadError: Boolean(error),
     },
   };
 });
 
-export default function SitesPage({ sites }: SitesPageProps) {
+export default function SitesPage({ sites, hasSitesLoadError }: SitesPageProps) {
   return (
     <AdminLayout>
       <Head>
         <title>Sites - Admin</title>
       </Head>
 
-      <SitesList sites={sites} />
+      <SitesList sites={sites} hasLoadError={hasSitesLoadError} />
     </AdminLayout>
   );
 }

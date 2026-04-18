@@ -15,22 +15,24 @@ export const getServerSideProps = requireAuthentication(async () => {
   return {
     props: {
       sites,
+      hasSitesLoadError: Boolean(error),
     },
   };
 });
 
 interface DashboardProps {
   sites: Site[];
+  hasSitesLoadError: boolean;
 }
 
-export default function Dashboard({ sites }: DashboardProps) {
+export default function Dashboard({ sites, hasSitesLoadError }: DashboardProps) {
   return (
     <AdminLayout>
       <Head>
         <title>Dashboard - Admin</title>
       </Head>
 
-      <SitesList sites={sites} />
+      <SitesList sites={sites} hasLoadError={hasSitesLoadError} />
     </AdminLayout>
   );
 }
