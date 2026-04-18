@@ -8,6 +8,7 @@ import type { AppPermissions } from '@/lib/permissions/types';
 
 interface SitesPageProps {
   sites: Site[];
+  hasSitesLoadError: boolean;
   permissions: AppPermissions;
 }
 
@@ -22,19 +23,20 @@ export const getServerSideProps = requireAuthentication(
     return {
       props: {
         sites,
+        hasSitesLoadError: Boolean(error),
       },
     };
   }),
 );
 
-export default function SitesPage({ sites, permissions }: SitesPageProps) {
+export default function SitesPage({ sites, hasSitesLoadError, permissions }: SitesPageProps) {
   return (
     <AdminLayout permissions={permissions}>
       <Head>
         <title>Sites - Admin</title>
       </Head>
 
-      <SitesList sites={sites} />
+      <SitesList sites={sites} hasLoadError={hasSitesLoadError} />
     </AdminLayout>
   );
 }

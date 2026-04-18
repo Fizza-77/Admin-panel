@@ -33,6 +33,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
   return {
     props: {
       sites,
+      hasSitesLoadError: Boolean(error),
       permissions,
     },
   };
@@ -40,17 +41,18 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 
 interface DashboardProps {
   sites: Site[];
+  hasSitesLoadError: boolean;
   permissions: AppPermissions;
 }
 
-export default function Dashboard({ sites, permissions }: DashboardProps) {
+export default function Dashboard({ sites, hasSitesLoadError, permissions }: DashboardProps) {
   return (
     <AdminLayout permissions={permissions}>
       <Head>
         <title>Dashboard - Admin</title>
       </Head>
 
-      <SitesList sites={sites} />
+      <SitesList sites={sites} hasLoadError={hasSitesLoadError} />
     </AdminLayout>
   );
 }
