@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { AppPermissions } from '@/lib/permissions/types';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2, Trash2, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { reportError } from '@/lib/monitoring';
 
@@ -42,6 +42,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -111,6 +112,37 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       reportError(e, { source: 'AdminUsersPage.saveRow', userId: row.id });
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const deleteRow = async (row: AdminUserRow) => {
+    if (!permissions.isPrimaryAdmin) {
+      alert('Only ADMIN_OWNER_EMAIL can delete users.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete user "${row.email ?? 'unknown'}"? This action cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(row.id);
+    try {
+      const res = await fetch(`/api/admin/users/${row.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message || 'Delete failed');
+      }
+      await load(page);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Delete failed';
+      alert(msg);
+      reportError(e, { source: 'AdminUsersPage.deleteRow', userId: row.id });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -323,14 +355,34 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                           />
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => void saveRow(row)}
-                            disabled={savingId === row.id}
-                            className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-900 hover:bg-cyan-100 disabled:opacity-50"
-                          >
-                            {savingId === row.id ? 'Saving…' : 'Save'}
-                          </button>
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void saveRow(row)}
+                              disabled={savingId === row.id || deletingId === row.id}
+                              className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-900 hover:bg-cyan-100 disabled:opacity-50"
+                            >
+                              {savingId === row.id ? 'Saving…' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteRow(row)}
+                              disabled={
+                                deletingId === row.id ||
+                                savingId === row.id ||
+                                !permissions.isPrimaryAdmin ||
+                                primaryLocked
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {deletingId === row.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

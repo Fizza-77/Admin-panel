@@ -15,9 +15,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Invalid user id' });
   }
 
-  if (req.method !== 'PATCH') {
-    res.setHeader('Allow', ['PATCH']);
+  if (req.method !== 'PATCH' && req.method !== 'DELETE') {
+    res.setHeader('Allow', ['PATCH', 'DELETE']);
     return res.status(405).json({ message: 'Method Not Allowed' });
+  }
+
+  if (req.method === 'DELETE') {
+    if (!auth.permissions.isPrimaryAdmin) {
+      return res.status(403).json({ message: 'Only ADMIN_OWNER_EMAIL can delete users.' });
+    }
+
+    const actingUserId = auth.userId;
+    if (userId === actingUserId) {
+      return res.status(400).json({ message: 'You cannot delete your own account.' });
+    }
+
+    const { data: targetUserData, error: targetUserErr } = await supabase.auth.admin.getUserById(userId);
+    if (targetUserErr || !targetUserData?.user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (isPrimaryAdminEmail(targetUserData.user.email)) {
+      return res.status(400).json({ message: 'Primary admin account cannot be deleted.' });
+    }
+
+    const { error: deleteProfileError } = await supabase.from('app_profiles').delete().eq('user_id', userId);
+    if (deleteProfileError) {
+      reportError(deleteProfileError, { source: 'api/admin/users DELETE profile', userId });
+      return res.status(500).json({ message: 'Failed to delete user profile.' });
+    }
+
+    const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
+    if (deleteAuthError) {
+      reportError(deleteAuthError, { source: 'api/admin/users DELETE auth', userId });
+      return res.status(500).json({ message: deleteAuthError.message || 'Failed to delete user.' });
+    }
+
+    return res.status(200).json({ success: true });
   }
 
   const body = req.body ?? {};
