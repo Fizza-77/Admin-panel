@@ -1,11 +1,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
-import { Lock, Mail, Loader2, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckSquare,
+  LayoutDashboard,
+  Loader2,
+  Lock,
+  Mail,
+  Shield,
+  Sparkles,
+} from 'lucide-react';
 import { reportError } from '@/lib/monitoring';
 
 const loginSchema = z.object({
@@ -14,6 +24,12 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
+const highlights = [
+  { icon: LayoutDashboard, text: 'Blog & site management' },
+  { icon: CheckSquare, text: 'Kanban tasks & assignments' },
+  { icon: Shield, text: 'Role-based secure access' },
+];
 
 export default function Login() {
   const router = useRouter();
@@ -50,88 +66,184 @@ export default function Login() {
   return (
     <>
       <Head>
-        <title>Login - Skyen Admin</title>
+        <title>Sign in · Skyen Admin</title>
+        <meta name="description" content="Sign in to the Skyen Admin Panel" />
       </Head>
-      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-50 px-4 py-10 sm:px-6">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/40 via-zinc-50 to-zinc-50"
-          aria-hidden
-        />
 
-        <div className="relative w-full max-w-md animate-fade-in">
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25">
-              <Sparkles className="h-6 w-6" aria-hidden />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">Skyen Admin Panel</h1>
-            <p className="mt-2 text-sm text-zinc-500">Sign in to manage blogs, tasks, and users</p>
-          </div>
-
-          <div className="ui-surface-elevated px-6 py-8 sm:px-8">
-            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
-              {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-                  {error}
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Email address
-                </label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" aria-hidden />
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="username"
-                    {...register('email')}
-                    className="ui-input pl-10"
-                    placeholder="admin@example.com"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-1.5 text-sm text-red-600" role="alert">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" aria-hidden />
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    {...register('password')}
-                    className="ui-input pl-10"
-                    placeholder="••••••••"
-                  />
-                </div>
-                {errors.password && (
-                  <p className="mt-1.5 text-sm text-red-600" role="alert">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              <button type="submit" disabled={isLoading} className="ui-btn-primary w-full !min-h-11">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                    Signing in…
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </form>
-          </div>
+      <div className="relative flex min-h-screen overflow-hidden bg-zinc-950">
+        {/* Ambient background */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute -left-32 top-0 h-[28rem] w-[28rem] rounded-full bg-indigo-600/30 blur-[100px]" />
+          <div className="absolute bottom-0 right-0 h-[24rem] w-[24rem] rounded-full bg-violet-600/25 blur-[90px]" />
+          <div className="absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[80px]" />
+          <div
+            className="absolute inset-0 opacity-[0.35]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+              backgroundSize: '48px 48px',
+            }}
+          />
         </div>
+
+        {/* Brand panel — desktop */}
+        <aside
+          className="relative hidden lg:flex lg:w-[52%] xl:w-[55%] flex-col justify-between border-r border-white/5 p-12 xl:p-16"
+          aria-hidden={false}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
+                <Image
+                  src="/logo.png"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <span className="absolute text-lg font-bold text-white">S</span>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-indigo-300/90">Skyen</p>
+                <p className="text-lg font-semibold text-white">Admin Panel</p>
+              </div>
+            </div>
+
+            <h1 className="mt-16 max-w-lg text-4xl font-semibold leading-[1.15] tracking-tight text-white xl:text-5xl">
+              Your control center for content, tasks, and teams.
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-zinc-400">
+              A polished workspace to publish blogs, run your task board, and manage access — all in one place.
+            </p>
+
+            <ul className="mt-10 space-y-4">
+              {highlights.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-3 text-sm text-zinc-300">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
+                    <Icon className="h-4 w-4 text-indigo-300" aria-hidden />
+                  </span>
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="relative z-10 text-xs text-zinc-600">
+            © {new Date().getFullYear()} Skyen · Internal admin access only
+          </p>
+        </aside>
+
+        {/* Form panel */}
+        <main className="relative flex flex-1 flex-col items-center justify-center px-5 py-12 sm:px-8">
+          <div className="w-full max-w-[420px] animate-fade-in">
+            {/* Mobile brand */}
+            <div className="mb-10 text-center lg:hidden">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
+                <Sparkles className="h-7 w-7 text-white" aria-hidden />
+              </div>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">Skyen Admin</h1>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-8 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-10">
+              <div className="mb-8 hidden lg:block">
+                <h2 className="text-xl font-semibold text-white">Welcome back</h2>
+              </div>
+
+              <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+                {error && (
+                  <div
+                    className="flex gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+                    role="alert"
+                  >
+                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-400" aria-hidden />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="email" className="mb-2 block text-sm font-medium text-zinc-300">
+                    Email address
+                  </label>
+                  <div className="group relative">
+                    <Mail
+                      className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-zinc-500 transition group-focus-within:text-indigo-400"
+                      aria-hidden
+                    />
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="username"
+                      {...register('email')}
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 transition focus:border-indigo-500/50 focus:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      placeholder="you@company.com"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="mt-2 text-sm text-red-400" role="alert">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-zinc-300">
+                    Password
+                  </label>
+                  <div className="group relative">
+                    <Lock
+                      className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-zinc-500 transition group-focus-within:text-indigo-400"
+                      aria-hidden
+                    />
+                    <input
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      {...register('password')}
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 transition focus:border-indigo-500/50 focus:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      placeholder="••••••••••"
+                    />
+                  </div>
+                  {errors.password && (
+                    <p className="mt-2 text-sm text-red-400" role="alert">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="group relative mt-2 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 transition hover:from-indigo-400 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 transition group-hover:opacity-100" aria-hidden />
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                      Signing in…
+                    </>
+                  ) : (
+                    <>
+                      Sign in
+                      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <p className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-zinc-500">
+                <Shield className="h-3.5 w-3.5 shrink-0 text-zinc-600" aria-hidden />
+                Encrypted session · Authorized personnel only
+              </p>
+            </div>
+
+            <p className="mt-8 text-center text-xs text-zinc-600 lg:hidden">
+              © {new Date().getFullYear()} Skyen Admin Panel
+            </p>
+          </div>
+        </main>
       </div>
     </>
   );
