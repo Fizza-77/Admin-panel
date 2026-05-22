@@ -124,9 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (Array.isArray(body.assignee_ids)) {
-      const ids = body.assignee_ids.filter((x: unknown) => typeof x === 'string');
+      const ids = body.assignee_ids.filter((x: unknown): x is string => typeof x === 'string');
       const previous = new Set(assigneeIds);
-      const added = ids.filter((uid) => !previous.has(uid));
+      const added = ids.filter((uid: string) => !previous.has(uid));
       await supabase.from('task_assignees').delete().eq('task_id', taskId);
       if (ids.length > 0) {
         const { error: ae } = await supabase.from('task_assignees').insert(
