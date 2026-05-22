@@ -133,7 +133,7 @@ export default function Sidebar({ permissions }: SidebarProps) {
             {!collapsed ? (
               <>
                 <div className="min-w-0 flex-1 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3 py-2.5">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500">Skyen</p>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-zinc-500">Skyen Systems</p>
                   <p className="mt-0.5 truncate text-base font-semibold text-white">Admin Panel</p>
                 </div>
                 <button

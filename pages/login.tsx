@@ -35,6 +35,7 @@ export default function Login() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const {
     register,
@@ -66,8 +67,8 @@ export default function Login() {
   return (
     <>
       <Head>
-        <title>Sign in · Skyen Admin</title>
-        <meta name="description" content="Sign in to the Skyen Admin Panel" />
+        <title>Sign in · Skyen Systems</title>
+        <meta name="description" content="Sign in to the Skyen Systems Admin Panel" />
       </Head>
 
       <div className="relative flex min-h-screen overflow-hidden bg-zinc-950">
@@ -93,21 +94,24 @@ export default function Login() {
         >
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
-                <Image
-                  src="/logo.png"
-                  alt=""
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-                <span className="absolute text-lg font-bold text-white">S</span>
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
+                {logoFailed ? (
+                  <span className="text-lg font-bold text-white" aria-hidden>
+                    S
+                  </span>
+                ) : (
+                  <Image
+                    src="/logo.png"
+                    alt="Skyen Systems"
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                    onError={() => setLogoFailed(true)}
+                  />
+                )}
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-indigo-300/90">Skyen</p>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-indigo-300/90">Skyen Systems</p>
                 <p className="text-lg font-semibold text-white">Admin Panel</p>
               </div>
             </div>
@@ -132,7 +136,7 @@ export default function Login() {
           </div>
 
           <p className="relative z-10 text-xs text-zinc-600">
-            © {new Date().getFullYear()} Skyen · Internal admin access only
+            © {new Date().getFullYear()} Skyen Systems · Internal admin access only
           </p>
         </aside>
 
@@ -144,7 +148,8 @@ export default function Login() {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
                 <Sparkles className="h-7 w-7 text-white" aria-hidden />
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">Skyen Admin</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">Skyen Systems</h1>
+              <p className="mt-1 text-sm font-medium text-indigo-300/90">Admin Panel</p>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-8 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-10">
@@ -240,7 +245,7 @@ export default function Login() {
             </div>
 
             <p className="mt-8 text-center text-xs text-zinc-600 lg:hidden">
-              © {new Date().getFullYear()} Skyen Admin Panel
+              © {new Date().getFullYear()} Skyen Systems
             </p>
           </div>
         </main>
