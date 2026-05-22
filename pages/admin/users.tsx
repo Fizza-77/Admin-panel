@@ -15,6 +15,7 @@ export type AdminUserRow = {
   last_sign_in_at: string | null;
   can_manage_blogs: boolean;
   can_manage_tasks: boolean;
+  can_administer_tasks: boolean;
   can_manage_users: boolean;
 };
 
@@ -48,7 +49,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newBlogs, setNewBlogs] = useState(true);
-  const [newTasks, setNewTasks] = useState(false);
+  const [newTaskAdmin, setNewTaskAdmin] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
 
   const isPrimaryOwnerRow = (row: AdminUserRow) =>
@@ -96,7 +97,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           can_manage_blogs: row.can_manage_blogs,
-          can_manage_tasks: row.can_manage_tasks,
+          can_administer_tasks: row.can_administer_tasks,
           can_manage_users: row.can_manage_users,
           display_name: (row.display_name ?? '').trim() || null,
         }),
@@ -160,7 +161,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           password: newPassword,
           display_name: newDisplayName.trim() || null,
           can_manage_blogs: newBlogs,
-          can_manage_tasks: newTasks,
+          can_administer_tasks: newTaskAdmin,
           can_manage_users: false,
         }),
       });
@@ -171,7 +172,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       setNewEmail('');
       setNewPassword('');
       setNewBlogs(true);
-      setNewTasks(false);
+      setNewTaskAdmin(false);
       setNewDisplayName('');
       setPage(1);
       await load(1);
@@ -192,6 +193,11 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">User management</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Every user gets basic <span className="font-medium">Tasks</span> access automatically (view assigned tasks,
+            update status). Enable <span className="font-medium">Tasks admin</span> only for people who should create
+            tasks, edit any task, and manage tags. User management stays with the primary admin email.
+          </p>
         </div>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -239,10 +245,16 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                 <input type="checkbox" checked={newBlogs} onChange={(e) => setNewBlogs(e.target.checked)} />
                 Blogs
               </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={newTasks} onChange={(e) => setNewTasks(e.target.checked)} />
-                Tasks
+              <label
+                className="inline-flex items-center gap-2 text-sm"
+                title="Create tasks, edit any task, assign anyone, manage tags"
+              >
+                <input type="checkbox" checked={newTaskAdmin} onChange={(e) => setNewTaskAdmin(e.target.checked)} />
+                Tasks admin
               </label>
+              <span className="text-xs text-slate-500 sm:col-span-2 lg:col-span-4">
+                Basic task access is enabled for all new users.
+              </span>
             </div>
             {formError && <p className="text-sm text-red-600 sm:col-span-2 lg:col-span-4">{formError}</p>}
             <div className="sm:col-span-2 lg:col-span-4">
@@ -309,7 +321,9 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Created</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Last sign-in</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Blogs</th>
-                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Tasks</th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Manage all tasks">
+                      Tasks admin
+                    </th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Action</th>
                   </tr>
                 </thead>
@@ -339,7 +353,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                         <td className="px-4 py-3 text-center">
                           <input
                             type="checkbox"
-                            checked={row.can_manage_blogs}
+                            checked={primaryLocked ? true : row.can_manage_blogs}
                             disabled={primaryLocked}
                             onChange={(e) => updateLocalRow(row.id, { can_manage_blogs: e.target.checked })}
                             aria-label="Can manage blogs"
@@ -348,10 +362,11 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                         <td className="px-4 py-3 text-center">
                           <input
                             type="checkbox"
-                            checked={row.can_manage_tasks}
+                            checked={primaryLocked ? true : row.can_administer_tasks}
                             disabled={primaryLocked}
-                            onChange={(e) => updateLocalRow(row.id, { can_manage_tasks: e.target.checked })}
-                            aria-label="Can manage tasks"
+                            onChange={(e) => updateLocalRow(row.id, { can_administer_tasks: e.target.checked })}
+                            aria-label="Tasks admin — create and manage all tasks"
+                            title="Tasks admin: create tasks, edit any task, manage tags"
                           />
                         </td>
                         <td className="px-4 py-3 text-right">

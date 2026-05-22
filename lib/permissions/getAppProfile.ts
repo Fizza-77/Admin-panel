@@ -39,19 +39,22 @@ function rowToPermissions(
   row: {
     can_manage_blogs: boolean;
     can_manage_tasks: boolean;
+    can_administer_tasks?: boolean;
     can_manage_users: boolean;
     display_name?: string | null;
   },
   email: string | null | undefined,
 ): AppPermissions {
   const primary = isPrimaryAdminEmail(email);
+  const administer = row.can_administer_tasks ?? false;
   return {
     canManageBlogs: row.can_manage_blogs,
     canManageTasks: row.can_manage_tasks,
+    canAdministerTasks: primary ? true : administer,
     canManageUsers: row.can_manage_users,
     isPrimaryAdmin: primary,
     canAccessUserManagement: isPrimaryAdminEnforced() ? primary : row.can_manage_users,
-    canCreateTaskTags: isPrimaryAdminEnforced() ? primary : row.can_manage_users,
+    canCreateTaskTags: isPrimaryAdminEnforced() ? primary : administer,
     displayName: row.display_name ?? null,
   };
 }
@@ -63,7 +66,7 @@ function rowToPermissions(
  */
 function withAccountEmail(perms: AppPermissions, email: string | null | undefined): AppPermissions {
   const primary = isPrimaryAdminEmail(email);
-  const tagCreators = isPrimaryAdminEnforced() ? primary : perms.canManageUsers;
+  const tagCreators = isPrimaryAdminEnforced() ? primary : perms.canAdministerTasks;
   return {
     ...perms,
     isPrimaryAdmin: primary,
@@ -79,7 +82,7 @@ export async function getAppProfile(
 ): Promise<AppPermissions> {
   const { data, error } = await supabase
     .from('app_profiles')
-    .select('can_manage_blogs, can_manage_tasks, can_manage_users, display_name')
+    .select('can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, display_name')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -89,6 +92,7 @@ export async function getAppProfile(
       {
         canManageBlogs: false,
         canManageTasks: false,
+        canAdministerTasks: false,
         canManageUsers: false,
         isPrimaryAdmin: false,
         canAccessUserManagement: false,
@@ -108,6 +112,7 @@ export async function getAppProfile(
       user_id: userId,
       can_manage_blogs: true,
       can_manage_tasks: true,
+      can_administer_tasks: true,
       can_manage_users: true,
     });
     if (insertError) {
@@ -116,6 +121,7 @@ export async function getAppProfile(
         {
           canManageBlogs: false,
           canManageTasks: false,
+          canAdministerTasks: false,
           canManageUsers: false,
           isPrimaryAdmin: false,
           canAccessUserManagement: false,
@@ -128,11 +134,12 @@ export async function getAppProfile(
       {
         canManageBlogs: true,
         canManageTasks: true,
+        canAdministerTasks: true,
         canManageUsers: true,
         displayName: null,
-        isPrimaryAdmin: false,
+        isPrimaryAdmin: isPrimaryAdminEmail(email),
         canAccessUserManagement: false,
-        canCreateTaskTags: false,
+        canCreateTaskTags: true,
       },
       email,
     );
@@ -142,6 +149,7 @@ export async function getAppProfile(
     {
       canManageBlogs: false,
       canManageTasks: false,
+      canAdministerTasks: false,
       canManageUsers: false,
       isPrimaryAdmin: false,
       canAccessUserManagement: false,

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowLeft, Bell, Users } from 'lucide-react';
+import { ArrowLeft, Users } from 'lucide-react';
+import TaskNotifications from './TaskNotifications';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { useSidebar } from './SidebarContext';
 
@@ -117,10 +118,7 @@ export default function Header({ permissions }: HeaderProps) {
           >
             {displayLabel(permissions)}
           </Link>
-          <button className="bg-white p-2 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none">
-            <span className="sr-only">View notifications</span>
-            <Bell className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
-          </button>
+          <TaskNotifications enabled={canTasks} />
           <Link
             href="/settings"
             className="inline-flex h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-cyan-100 items-center justify-center text-cyan-800 font-bold text-xs sm:text-sm hover:bg-cyan-200"

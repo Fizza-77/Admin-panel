@@ -49,7 +49,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { error: insErr } = await supabase.from('app_profiles').insert({
         user_id: user.id,
         can_manage_blogs: false,
-        can_manage_tasks: false,
+        can_manage_tasks: true,
+        can_administer_tasks: false,
         can_manage_users: false,
         display_name,
         updated_at: new Date().toISOString(),

@@ -57,11 +57,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const body = req.body ?? {};
   if (
     typeof body.can_manage_blogs !== 'boolean' ||
-    typeof body.can_manage_tasks !== 'boolean' ||
+    typeof body.can_administer_tasks !== 'boolean' ||
     typeof body.can_manage_users !== 'boolean'
   ) {
     return res.status(400).json({
-      message: 'Body must include boolean can_manage_blogs, can_manage_tasks, and can_manage_users',
+      message: 'Body must include boolean can_manage_blogs, can_administer_tasks, and can_manage_users',
     });
   }
 
@@ -75,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: existing, error: readErr } = await supabase
     .from('app_profiles')
-    .select('display_name, can_manage_blogs, can_manage_tasks, can_manage_users')
+    .select('display_name, can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -90,13 +90,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   let can_manage_blogs = body.can_manage_blogs;
-  let can_manage_tasks = body.can_manage_tasks;
+  const can_manage_tasks = true;
+  let can_administer_tasks = body.can_administer_tasks;
   let can_manage_users = body.can_manage_users;
 
   if (targetIsPrimary) {
-    can_manage_blogs = existing?.can_manage_blogs ?? true;
-    can_manage_tasks = existing?.can_manage_tasks ?? true;
-    can_manage_users = existing?.can_manage_users ?? true;
+    can_manage_blogs = true;
+    can_administer_tasks = true;
+    can_manage_users = true;
   } else {
     if (body.can_manage_users) {
       return res.status(400).json({ message: 'Granting user management is not allowed for non-admin accounts.' });
@@ -109,6 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user_id: userId,
       can_manage_blogs,
       can_manage_tasks,
+      can_administer_tasks,
       can_manage_users,
       display_name,
       updated_at: new Date().toISOString(),
@@ -126,6 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       id: userId,
       can_manage_blogs,
       can_manage_tasks,
+      can_administer_tasks,
       can_manage_users,
       display_name,
     },

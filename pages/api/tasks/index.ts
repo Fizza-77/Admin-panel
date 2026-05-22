@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase/server';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
+import { isTaskSuperAdmin } from '@/lib/permissions/taskAdmin';
+import { notifyTaskAssignees } from '@/lib/tasks/notifyAssignees';
 import { reportError } from '@/lib/monitoring';
 import { getTaskIdsAssignedToUser, orFilterForVisibleTasks } from '@/lib/tasks/taskQueries';
 import { isTaskStatus } from '@/lib/tasks/taskStatus';
@@ -25,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { userId, permissions } = auth;
-  const isSuper = permissions.canManageUsers;
+  const isSuper = isTaskSuperAdmin(permissions);
 
   if (req.method === 'GET') {
     const statusFilter = typeof req.query.status === 'string' ? req.query.status : undefined;
@@ -106,8 +108,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    if (!permissions.canManageUsers) {
-      return res.status(403).json({ message: 'Only administrators can create tasks.' });
+    if (!isTaskSuperAdmin(permissions)) {
+      return res.status(403).json({ message: 'You do not have permission to create tasks.' });
     }
 
     const body = req.body ?? {};
@@ -187,6 +189,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       )
       .eq('id', taskId)
       .single();
+
+    await notifyTaskAssignees({
+      taskId,
+      taskTitle: title,
+      assigneeIds: assignee_ids,
+      actorUserId: userId,
+      isNewTask: true,
+    });
 
     if (fullErr || !full) {
       return res.status(201).json({ task: { id: taskId, title } });

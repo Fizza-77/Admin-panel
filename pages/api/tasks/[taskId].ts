@@ -1,11 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase/server';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
+import { isTaskSuperAdmin } from '@/lib/permissions/taskAdmin';
 import { reportError } from '@/lib/monitoring';
 import { assigneeStatusOnly, canUserFullyManageTask, canUserViewTask } from '@/lib/tasks/taskAccess';
 import { isTaskStatus } from '@/lib/tasks/taskStatus';
 import { isTaskVisibility } from '@/lib/tasks/taskVisibility';
 import type { TaskWithRelations } from '@/lib/tasks/taskRow';
+import { notifyTaskAssignees } from '@/lib/tasks/notifyAssignees';
 
 function mapTaskRow(raw: any): TaskWithRelations {
   const assigneeRows = raw.task_assignees as { user_id: string }[] | undefined;
@@ -44,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { userId, permissions } = auth;
-  const isSuper = permissions.canManageUsers;
+  const isSuper = isTaskSuperAdmin(permissions);
 
   const taskId = req.query.taskId;
   if (typeof taskId !== 'string') {
@@ -123,6 +125,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (Array.isArray(body.assignee_ids)) {
       const ids = body.assignee_ids.filter((x: unknown) => typeof x === 'string');
+      const previous = new Set(assigneeIds);
+      const added = ids.filter((uid) => !previous.has(uid));
       await supabase.from('task_assignees').delete().eq('task_id', taskId);
       if (ids.length > 0) {
         const { error: ae } = await supabase.from('task_assignees').insert(
@@ -131,6 +135,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (ae) {
           reportError(ae, { source: 'api/tasks PATCH assignees' });
         }
+      }
+      if (added.length > 0) {
+        const taskTitle =
+          typeof patch.title === 'string' ? patch.title : loaded.title;
+        await notifyTaskAssignees({
+          taskId,
+          taskTitle,
+          assigneeIds: added,
+          actorUserId: userId,
+          isNewTask: false,
+        });
       }
     }
 

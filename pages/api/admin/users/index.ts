@@ -11,6 +11,7 @@ type AdminUserRow = {
   last_sign_in_at: string | null;
   can_manage_blogs: boolean;
   can_manage_tasks: boolean;
+  can_administer_tasks: boolean;
   can_manage_users: boolean;
 };
 
@@ -49,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ids = batch.map((u) => u.id);
     const { data: profiles, error: profError } = await supabase
       .from('app_profiles')
-      .select('user_id, can_manage_blogs, can_manage_tasks, can_manage_users, display_name')
+      .select('user_id, can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, display_name')
       .in('user_id', ids);
 
     if (profError) {
@@ -68,7 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
         can_manage_blogs: p?.can_manage_blogs ?? false,
-        can_manage_tasks: p?.can_manage_tasks ?? false,
+        can_manage_tasks: p?.can_manage_tasks ?? true,
+        can_administer_tasks: p?.can_administer_tasks ?? false,
         can_manage_users: p?.can_manage_users ?? false,
       };
     });
@@ -83,7 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const emailRaw = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const password = typeof body.password === 'string' ? body.password : '';
     const can_manage_blogs = Boolean(body.can_manage_blogs);
-    const can_manage_tasks = Boolean(body.can_manage_tasks);
+    const can_manage_tasks = true;
+    const can_administer_tasks = Boolean(body.can_administer_tasks);
     const can_manage_users = false;
     const display_name =
       typeof body.display_name === 'string' ? body.display_name.trim().slice(0, 120) || null : null;
@@ -114,6 +117,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: created.user.id,
         can_manage_blogs,
         can_manage_tasks,
+        can_administer_tasks,
         can_manage_users,
         display_name,
         updated_at: new Date().toISOString(),
@@ -138,6 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         last_sign_in_at: created.user.last_sign_in_at ?? null,
         can_manage_blogs,
         can_manage_tasks,
+        can_administer_tasks,
         can_manage_users,
       },
     });
