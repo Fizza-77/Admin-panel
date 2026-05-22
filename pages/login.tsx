@@ -14,7 +14,6 @@ import {
   Lock,
   Mail,
   Shield,
-  Sparkles,
 } from 'lucide-react';
 import { reportError } from '@/lib/monitoring';
 
@@ -145,8 +144,21 @@ export default function Login() {
           <div className="w-full max-w-[420px] animate-fade-in">
             {/* Mobile brand */}
             <div className="mb-10 text-center lg:hidden">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
-                <Sparkles className="h-7 w-7 text-white" aria-hidden />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/10 shadow-lg shadow-black/20 ring-1 ring-white/20 backdrop-blur-sm">
+                {logoFailed ? (
+                  <span className="text-xl font-bold text-white" aria-hidden>
+                    S
+                  </span>
+                ) : (
+                  <Image
+                    src="/logo.png"
+                    alt="Skyen Systems"
+                    width={40}
+                    height={40}
+                    className="object-contain"
+                    onError={() => setLogoFailed(true)}
+                  />
+                )}
               </div>
               <h1 className="text-2xl font-semibold tracking-tight text-white">Skyen Systems</h1>
               <p className="mt-1 text-sm font-medium text-indigo-300/90">Admin Panel</p>
