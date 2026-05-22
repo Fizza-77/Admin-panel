@@ -29,7 +29,7 @@ export default function Login() {
     setError('');
     
     try {
-      await axios.post('/api/login', data);
+      await axios.post('/api/login', data, { withCredentials: true });
       await router.push('/');
     } catch (err: any) {
       reportError(err, { source: 'Login.onSubmit', email: data.email });

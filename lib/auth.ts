@@ -2,17 +2,20 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { GetServerSidePropsContext } from 'next';
 import nookies from 'nookies';
 import jwt from 'jsonwebtoken';
-import { serialize } from 'cookie';
-import { supabase } from '@/lib/supabase/server';
+import { resolveAdminSession } from '@/lib/auth/resolveSession';
+import { clearSessionCookieHeaders } from '@/lib/auth/sessionCookies';
 import { reportError } from '@/lib/monitoring';
 import { getAppProfile } from '@/lib/permissions/getAppProfile';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { redirectWhenBlogDenied, redirectWhenTaskDenied } from '@/lib/permissions/redirects';
 
-/** HttpOnly cookie set after the user passes ADMIN_SETUP_PASSWORD (site setup actions). */
-export const ADMIN_SETUP_GATE_COOKIE = 'admin_setup_gate';
-export const ADMIN_SESSION_COOKIE = 'admin_session';
-export const ADMIN_REFRESH_COOKIE = 'admin_refresh_token';
+import {
+  ADMIN_SETUP_GATE_COOKIE,
+  ADMIN_SESSION_COOKIE,
+  ADMIN_REFRESH_COOKIE,
+} from '@/lib/auth/cookieNames';
+
+export { ADMIN_SETUP_GATE_COOKIE, ADMIN_SESSION_COOKIE, ADMIN_REFRESH_COOKIE };
 
 function getJwtSecret(): string | null {
   const secret = process.env.JWT_SECRET;
@@ -116,50 +119,7 @@ export async function getAuthUserFromApiRequest(
   req: NextApiRequest,
   res?: NextApiResponse,
 ): Promise<{ id: string; email?: string } | null> {
-  const accessToken = req.cookies[ADMIN_SESSION_COOKIE];
-  const refreshToken = req.cookies[ADMIN_REFRESH_COOKIE];
-
-  if (accessToken) {
-    const { data, error } = await supabase.auth.getUser(accessToken);
-    if (!error && data.user) {
-      return { id: data.user.id, email: data.user.email ?? undefined };
-    }
-    if (!refreshToken) {
-      return null;
-    }
-  } else if (!refreshToken) {
-    return null;
-  }
-
-  const { data, error } = await supabase.auth.refreshSession({
-    refresh_token: refreshToken,
-  });
-
-  if (error || !data.session?.access_token || !data.session.refresh_token || !data.user) {
-    return null;
-  }
-
-  if (res) {
-    const secure = process.env.NODE_ENV === 'production';
-    res.setHeader('Set-Cookie', [
-      serialize(ADMIN_SESSION_COOKIE, data.session.access_token, {
-        httpOnly: true,
-        secure,
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      }),
-      serialize(ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
-        httpOnly: true,
-        secure,
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      }),
-    ]);
-  }
-
-  return { id: data.user.id, email: data.user.email ?? undefined };
+  return resolveAdminSession(req.cookies, res);
 }
 
 export function verifyAdminSession(
@@ -178,49 +138,7 @@ export async function getAuthUserFromGsspContext(
   context: GetServerSidePropsContext,
 ): Promise<{ id: string; email?: string } | null> {
   const cookies = nookies.get(context);
-  const token = cookies[ADMIN_SESSION_COOKIE];
-  const refreshToken = cookies[ADMIN_REFRESH_COOKIE];
-
-  if (!token && !refreshToken) {
-    return null;
-  }
-
-  if (token) {
-    const { data, error } = await supabase.auth.getUser(token);
-    if (!error && data.user) {
-      return { id: data.user.id, email: data.user.email ?? undefined };
-    }
-    if (!refreshToken) {
-      return null;
-    }
-  } else if (!refreshToken) {
-    return null;
-  }
-
-  const { data, error } = await supabase.auth.refreshSession({
-    refresh_token: refreshToken,
-  });
-
-  if (error || !data.session?.access_token || !data.session?.refresh_token || !data.user) {
-    return null;
-  }
-
-  nookies.set(context, ADMIN_SESSION_COOKIE, data.session.access_token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-  });
-  nookies.set(context, ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-  });
-
-  return { id: data.user.id, email: data.user.email ?? undefined };
+  return resolveAdminSession(cookies, context);
 }
 
 type GsspWithPermissions = (
@@ -290,11 +208,8 @@ export function requirePermission(
 
 export function requireAuthentication(gssp: any) {
   return async (context: GetServerSidePropsContext) => {
-    const cookies = nookies.get(context);
-    const token = cookies[ADMIN_SESSION_COOKIE];
-    const refreshToken = cookies[ADMIN_REFRESH_COOKIE];
-
-    if (!token && !refreshToken) {
+    const user = await getAuthUserFromGsspContext(context);
+    if (!user) {
       return {
         redirect: {
           destination: '/login',
@@ -303,47 +218,6 @@ export function requireAuthentication(gssp: any) {
       };
     }
 
-    let isAuthed = false;
-
-    if (token) {
-      const { data, error } = await supabase.auth.getUser(token);
-      isAuthed = !error && Boolean(data.user);
-    }
-
-    if (!isAuthed && refreshToken) {
-      const { data, error } = await supabase.auth.refreshSession({
-        refresh_token: refreshToken,
-      });
-
-      if (!error && data.session?.access_token && data.session.refresh_token) {
-        isAuthed = true;
-        nookies.set(context, ADMIN_SESSION_COOKIE, data.session.access_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 60 * 60 * 24 * 7,
-          path: '/',
-        });
-        nookies.set(context, ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 60 * 60 * 24 * 7,
-          path: '/',
-        });
-      }
-    }
-
-    if (!isAuthed) {
-      return {
-        redirect: {
-          destination: '/login',
-          permanent: false,
-        },
-      };
-    }
-
-    // If valid, continue to page props
     return await gssp(context);
   };
 }

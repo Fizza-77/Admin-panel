@@ -8,7 +8,11 @@ const nextConfig = {
     "@tiptap/extension-link",
     "@tiptap/extension-text-align",
     "@tiptap/extension-underline",
-    "@tiptap/pm"
+    "@tiptap/extension-table",
+    "@tiptap/extension-table-row",
+    "@tiptap/extension-table-cell",
+    "@tiptap/extension-table-header",
+    "@tiptap/pm",
   ],
 };
 

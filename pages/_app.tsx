@@ -4,9 +4,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import { reportError } from '@/lib/monitoring';
+import { startAdminSessionMaintenance } from '@/lib/auth/clientSession';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+
+  useEffect(() => {
+    return startAdminSessionMaintenance(router.pathname === '/login');
+  }, [router.pathname]);
 
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {

@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { serialize } from 'cookie';
 import { createClient } from '@supabase/supabase-js';
-import { ADMIN_REFRESH_COOKIE, ADMIN_SESSION_COOKIE } from '@/lib/auth';
 import { supabase as supabaseAdmin } from '@/lib/supabase/server';
+import { setSessionCookiesOnResponse } from '@/lib/auth/sessionCookies';
 import { isBootstrapOwnerEmail } from '@/lib/permissions/getAppProfile';
 import { reportError } from '@/lib/monitoring';
 
@@ -66,25 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  res.setHeader(
-    'Set-Cookie',
-    [
-      serialize(ADMIN_SESSION_COOKIE, data.session.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      }),
-      serialize(ADMIN_REFRESH_COOKIE, data.session.refresh_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      }),
-    ],
-  );
+  setSessionCookiesOnResponse(res, data.session.access_token, data.session.refresh_token);
 
   return res.status(200).json({ success: true });
 }

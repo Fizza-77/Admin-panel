@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serialize } from 'cookie';
-import { ADMIN_REFRESH_COOKIE, ADMIN_SESSION_COOKIE, ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth';
+import { ADMIN_SETUP_GATE_COOKIE } from '@/lib/auth/cookieNames';
+import { clearSessionCookieHeaders } from '@/lib/auth/sessionCookies';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -10,14 +11,13 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const clear = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
-    maxAge: -1,
+    sameSite: 'lax' as const,
+    maxAge: 0,
     path: '/',
   };
 
   res.setHeader('Set-Cookie', [
-    serialize(ADMIN_SESSION_COOKIE, '', clear),
-    serialize(ADMIN_REFRESH_COOKIE, '', clear),
+    ...clearSessionCookieHeaders(),
     serialize(ADMIN_SETUP_GATE_COOKIE, '', clear),
   ]);
 
