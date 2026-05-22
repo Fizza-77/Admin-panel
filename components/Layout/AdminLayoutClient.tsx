@@ -15,20 +15,16 @@ function AdminLayoutInner({ children, permissions }: AdminLayoutClientProps) {
   const { collapsed } = useSidebar();
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/40 font-sans">
+    <div className="flex min-h-screen flex-col bg-zinc-50 md:flex-row">
       <Sidebar permissions={permissions} />
-      <div className="flex flex-col flex-1 w-full min-w-0 md:h-screen md:overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
         <Header permissions={permissions} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
-          <div
-            className={
-              collapsed
-                ? 'w-full max-w-none mx-auto'
-                : 'w-full max-w-7xl mx-auto'
-            }
-          >
-            {children}
-          </div>
+        <main
+          id="main-content"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-8"
+          tabIndex={-1}
+        >
+          <div className={collapsed ? 'mx-auto w-full max-w-none' : 'mx-auto w-full max-w-7xl'}>{children}</div>
         </main>
       </div>
     </div>

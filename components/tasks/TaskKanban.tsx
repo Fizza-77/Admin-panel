@@ -27,7 +27,9 @@ import {
   isTagColorKey,
 } from '@/lib/tasks/tagColors';
 import type { AppPermissions } from '@/lib/permissions/types';
-import { GripVertical, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { Calendar, GripVertical, Lock, Plus, Trash2, Users, X } from 'lucide-react';
+import { KanbanSkeleton } from '@/components/ui/Skeleton';
+import PageHeader from '@/components/ui/PageHeader';
 import { format } from 'date-fns';
 import { reportError } from '@/lib/monitoring';
 
@@ -53,7 +55,7 @@ function formatTaskDueReadOnly(iso: string | null | undefined) {
   return format(d, 'MMM d, yyyy h:mm a');
 }
 
-/** Column header (tab bar) colors; body stays neutral */
+/** Column header accent; body stays neutral for readability */
 const TASK_STATUS_COLUMN_THEME: Record<
   TaskStatus,
   {
@@ -63,39 +65,44 @@ const TASK_STATUS_COLUMN_THEME: Record<
     sub: string;
     body: string;
     dropOver: string;
+    dot: string;
   }
 > = {
   to_do: {
-    shell: 'border-slate-200 shadow-sm',
-    header: 'border-b border-black/10 bg-gray-500',
-    title: 'text-white',
-    sub: 'text-white/90',
-    body: 'bg-slate-50/95',
-    dropOver: 'ring-2 ring-slate-400/55 ring-inset rounded-b-lg bg-slate-100/70',
+    shell: 'border-zinc-200/90 shadow-sm',
+    header: 'border-b border-zinc-200/80 bg-white',
+    title: 'text-zinc-900',
+    sub: 'text-zinc-500',
+    body: 'bg-zinc-50/80',
+    dropOver: 'ring-2 ring-indigo-400/40 ring-inset rounded-b-2xl bg-indigo-50/60',
+    dot: 'bg-zinc-400',
   },
   in_progress: {
-    shell: 'border-slate-200 shadow-sm',
-    header: 'border-b border-black/10 bg-blue-600',
-    title: 'text-white',
-    sub: 'text-white/90',
-    body: 'bg-slate-50/95',
-    dropOver: 'ring-2 ring-blue-400/50 ring-inset rounded-b-lg bg-blue-50/80',
+    shell: 'border-zinc-200/90 shadow-sm',
+    header: 'border-b border-indigo-100 bg-indigo-50/90',
+    title: 'text-indigo-950',
+    sub: 'text-indigo-600/90',
+    body: 'bg-zinc-50/80',
+    dropOver: 'ring-2 ring-indigo-400/50 ring-inset rounded-b-2xl bg-indigo-50/70',
+    dot: 'bg-indigo-500',
   },
   ready: {
-    shell: 'border-slate-200 shadow-sm',
-    header: 'border-b border-black/10 bg-green-600',
-    title: 'text-white',
-    sub: 'text-white/90',
-    body: 'bg-slate-50/95',
-    dropOver: 'ring-2 ring-green-400/50 ring-inset rounded-b-lg bg-green-50/80',
+    shell: 'border-zinc-200/90 shadow-sm',
+    header: 'border-b border-emerald-100 bg-emerald-50/90',
+    title: 'text-emerald-950',
+    sub: 'text-emerald-700/90',
+    body: 'bg-zinc-50/80',
+    dropOver: 'ring-2 ring-emerald-400/45 ring-inset rounded-b-2xl bg-emerald-50/70',
+    dot: 'bg-emerald-500',
   },
   closed: {
-    shell: 'border-slate-200 shadow-sm',
-    header: 'border-b border-black/10 bg-yellow-500',
-    title: 'text-white',
-    sub: 'text-white/90',
-    body: 'bg-slate-50/95',
-    dropOver: 'ring-2 ring-yellow-400/60 ring-inset rounded-b-lg bg-yellow-50/80',
+    shell: 'border-zinc-200/90 shadow-sm',
+    header: 'border-b border-amber-100 bg-amber-50/90',
+    title: 'text-amber-950',
+    sub: 'text-amber-700/90',
+    body: 'bg-zinc-50/80',
+    dropOver: 'ring-2 ring-amber-400/50 ring-inset rounded-b-2xl bg-amber-50/70',
+    dot: 'bg-amber-500',
   },
 };
 
@@ -113,22 +120,38 @@ function KanbanColumn({
   const { setNodeRef, isOver } = useDroppable({ id: `column-${status}` });
   const theme = TASK_STATUS_COLUMN_THEME[status];
   return (
-    <div className={`rounded-xl border flex flex-col min-h-[320px] ${theme.shell}`}>
-      <div className={`px-3 py-2.5 rounded-t-[0.65rem] ${theme.header}`}>
-        <div className="min-w-0">
-          <h2 className={`text-sm font-semibold tracking-tight ${theme.title}`}>{label}</h2>
-          <p className={`text-xs mt-0.5 ${theme.sub}`}>{count} tasks</p>
+    <section
+      className={`ui-kanban-column min-h-[28rem] ${theme.shell}`}
+      aria-label={`${label} column`}
+    >
+      <div className={`sticky top-0 z-[1] rounded-t-2xl px-3 py-3 ${theme.header}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`} aria-hidden />
+          <div className="min-w-0 flex-1">
+            <h2 className={`text-sm font-semibold tracking-tight ${theme.title}`}>{label}</h2>
+            <p className={`text-xs mt-0.5 ${theme.sub}`}>
+              {count} {count === 1 ? 'task' : 'tasks'}
+            </p>
+          </div>
+          <span className={`rounded-lg px-2 py-0.5 text-xs font-medium tabular-nums ${theme.sub} bg-white/60`}>
+            {count}
+          </span>
         </div>
       </div>
       <div
         ref={setNodeRef}
-        className={`p-2 flex-1 space-y-2 overflow-y-auto max-h-[calc(100vh-220px)] min-h-[120px] ${theme.body} ${
+        className={`flex-1 space-y-2 overflow-y-auto p-2.5 max-h-[calc(100vh-12rem)] min-h-[8rem] rounded-b-2xl ${theme.body} ${
           isOver ? theme.dropOver : ''
         }`}
       >
         {children}
+        {count === 0 && (
+          <p className="px-2 py-8 text-center text-xs text-zinc-400" role="status">
+            Drop tasks here
+          </p>
+        )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -154,49 +177,73 @@ function DraggableTaskCard({
   const accentKey = firstTagId ? tagColorById.get(firstTagId) : undefined;
   const theme = accentKey ? TAG_TASK_CARD_THEME[accentKey] : null;
 
+  const dueDate = task.due_at ? new Date(task.due_at) : null;
+  const dueSoon =
+    dueDate && !Number.isNaN(dueDate.getTime()) && dueDate.getTime() - Date.now() < 48 * 60 * 60 * 1000;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex rounded-lg bg-white shadow-sm transition overflow-hidden ${
-        theme ? `${theme.border} ${theme.hoverBorder}` : 'border border-slate-200 hover:border-cyan-300 hover:shadow'
-      } ${isDragging ? 'opacity-50' : ''}`}
+      className={`ui-kanban-card ${
+        theme ? `${theme.border} ${theme.hoverBorder}` : ''
+      } ${isDragging ? 'ui-kanban-card-dragging' : ''}`}
     >
       <button
         type="button"
-        className="shrink-0 px-1.5 py-3 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing border-r border-slate-100 bg-slate-50/80 touch-none"
+        className="shrink-0 touch-none cursor-grab border-r border-zinc-100 bg-zinc-50/90 px-1.5 py-3 text-zinc-400 transition active:cursor-grabbing hover:text-zinc-600"
         {...listeners}
         {...attributes}
         aria-label="Drag to change column"
       >
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-4 w-4" aria-hidden />
       </button>
-      <button type="button" onClick={onOpen} className="flex-1 text-left p-2.5 min-w-0">
-        <p className="font-medium text-slate-900 text-sm line-clamp-2">{task.title}</p>
-        <div className="mt-2 flex flex-wrap gap-1">
+      <button type="button" onClick={onOpen} className="min-w-0 flex-1 p-3 text-left">
+        <p className="line-clamp-2 text-sm font-medium leading-snug text-zinc-900">{task.title}</p>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <span
-            className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
-              task.visibility === 'private' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'
+            className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+              task.visibility === 'private'
+                ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200/80'
+                : 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80'
             }`}
           >
+            {task.visibility === 'private' && <Lock className="h-2.5 w-2.5" aria-hidden />}
             {TASK_VISIBILITY_LABELS[task.visibility as TaskVisibility]}
           </span>
-          {task.due_at && (
-            <span className="text-[10px] text-slate-500">Due {format(new Date(task.due_at), 'MMM d')}</span>
+          {dueDate && !Number.isNaN(dueDate.getTime()) && (
+            <span
+              className={`inline-flex items-center gap-0.5 text-[10px] ${
+                dueSoon ? 'font-medium text-amber-700' : 'text-zinc-500'
+              }`}
+            >
+              <Calendar className="h-2.5 w-2.5" aria-hidden />
+              {format(dueDate, 'MMM d')}
+            </span>
           )}
         </div>
         {task.tag_ids.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {task.tag_ids.map((tid) => (
-              <span key={tid} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
-                {tagNameById.get(tid) ?? tid.slice(0, 6)}
-              </span>
-            ))}
+            {task.tag_ids.map((tid) => {
+              const colorKey = tagColorById.get(tid);
+              const pillBg = colorKey ? TAG_COLOR_BG[colorKey] : 'bg-zinc-100';
+              return (
+                <span
+                  key={tid}
+                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium text-zinc-800 ring-1 ring-black/5 ${pillBg}`}
+                >
+                  {tagNameById.get(tid) ?? tid.slice(0, 6)}
+                </span>
+              );
+            })}
           </div>
         )}
         {task.assignee_ids.length > 0 && (
-          <p className="mt-2 text-[10px] text-slate-500 truncate">
-            {task.assignee_ids.map((id) => userLabelById.get(id) ?? id).join(', ')}
+          <p className="mt-2 flex items-center gap-1 truncate text-[10px] text-zinc-500">
+            <Users className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              {task.assignee_ids.map((id) => userLabelById.get(id) ?? id).join(', ')}
+            </span>
           </p>
         )}
       </button>
@@ -425,8 +472,13 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-6">
+      <PageHeader
+        title="Tasks"
+        description="Drag cards between columns to update status. Use filters to narrow your board."
+        breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Tasks' }]}
+      />
+      <div className="ui-surface-elevated flex flex-col gap-3 p-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2 items-center">
           <input
             type="search"
@@ -438,19 +490,21 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
                 setQ(qInput.trim());
               }
             }}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm min-w-[180px]"
+            className="ui-input min-w-[180px]"
+            aria-label="Search tasks by title"
           />
           <button
             type="button"
             onClick={() => setQ(qInput.trim())}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="ui-btn-secondary"
           >
             Search
           </button>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="ui-select"
+            aria-label="Filter by status"
           >
             <option value="">All statuses</option>
             {TASK_STATUSES.map((s) => (
@@ -462,7 +516,8 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
           <select
             value={filterTagId}
             onChange={(e) => setFilterTagId(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="ui-select"
+            aria-label="Filter by tag"
           >
             <option value="">All tags</option>
             {tags.map((t) => (
@@ -474,7 +529,8 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
           <select
             value={filterVisibility}
             onChange={(e) => setFilterVisibility(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="ui-select"
+            aria-label="Filter by visibility"
           >
             <option value="">All visibility</option>
             <option value="private">Private</option>
@@ -484,7 +540,8 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
             <select
               value={filterAssigneeId}
               onChange={(e) => setFilterAssigneeId(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm max-w-[200px]"
+              className="ui-select max-w-[200px]"
+              aria-label="Filter by assignee"
             >
               <option value="">All assignees</option>
               {users.map((u) => (
@@ -535,7 +592,7 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+              className="ui-btn-primary"
             >
               <Plus className="h-4 w-4" />
               New task
@@ -547,12 +604,10 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <div className="flex justify-center py-20 text-slate-500">
-          <Loader2 className="h-10 w-10 animate-spin" />
-        </div>
+        <KanbanSkeleton />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 min-h-[420px]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 min-h-[28rem]">
             {TASK_STATUSES.map((status) => {
               const columnTasks = tasks.filter((t) => t.status === status);
               return (

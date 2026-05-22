@@ -1,10 +1,17 @@
-import "@/styles/globals.css";
-import type { AppProps } from "next/app";
+import '@/styles/globals.css';
+import type { AppProps } from 'next/app';
+import { Inter } from 'next/font/google';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import { reportError } from '@/lib/monitoring';
 import { startAdminSessionMaintenance } from '@/lib/auth/clientSession';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -45,7 +52,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <AppErrorBoundary>
-      <Component {...pageProps} />
+      <div className={`${inter.variable} font-sans`}>
+        <Component {...pageProps} />
+      </div>
     </AppErrorBoundary>
   );
 }

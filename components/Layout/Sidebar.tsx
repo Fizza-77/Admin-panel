@@ -2,12 +2,22 @@
 
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { CheckSquare, LayoutDashboard, Link2, LogOut, Minus, Plus, Users } from 'lucide-react';
+import {
+  CheckSquare,
+  LayoutDashboard,
+  Link2,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  Users,
+} from 'lucide-react';
 import axios from 'axios';
 import { setupUnlockHref } from '@/lib/setup';
 import { reportError } from '@/lib/monitoring';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { useSidebar } from './SidebarContext';
+import { cn } from '@/lib/ui/cn';
 
 type SidebarProps = {
   permissions?: AppPermissions;
@@ -58,9 +68,18 @@ export default function Sidebar({ permissions }: SidebarProps) {
     return router.pathname === item.href || (item.href !== '/' && router.pathname.startsWith(item.href));
   };
 
+  const navLinkClass = (active: boolean, compact: boolean) =>
+    cn(
+      'group flex items-center rounded-xl border transition-all duration-200',
+      compact ? 'justify-center px-2.5 py-2.5' : 'gap-3 px-3 py-2.5 text-sm font-medium',
+      active
+        ? 'border-indigo-500/30 bg-indigo-500/15 text-indigo-100 shadow-sm'
+        : 'border-transparent text-zinc-400 hover:border-zinc-700/50 hover:bg-zinc-800/80 hover:text-zinc-100',
+    );
+
   return (
     <>
-      <div className="md:hidden border-b border-slate-200 bg-white px-3 py-2">
+      <div className="border-b border-zinc-200 bg-white px-3 py-2 md:hidden">
         <div className="flex flex-wrap items-center gap-2">
           {navItems.map((item) => {
             const isActive = isActiveItem(item);
@@ -68,11 +87,12 @@ export default function Sidebar({ permissions }: SidebarProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                className={cn(
+                  'inline-flex min-h-10 items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-cyan-50 text-cyan-800 border-cyan-200'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-800'
+                    : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100',
+                )}
               >
                 <item.icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {item.name}
@@ -81,127 +101,124 @@ export default function Sidebar({ permissions }: SidebarProps) {
           })}
           <Link
             href="/settings"
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
           >
             Profile
           </Link>
           <button
-            onClick={handleLogout}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+            type="button"
+            onClick={() => void handleLogout()}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <LogOut className="h-3.5 w-3.5" aria-hidden />
             Logout
           </button>
         </div>
       </div>
 
-      <div
-        className={`hidden md:flex md:flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 border-r border-slate-800 shadow-2xl transition-[width] duration-200 ease-out ${
-          collapsed ? 'md:w-16' : 'md:w-72'
-        }`}
+      <aside
+        className={cn(
+          'hidden md:flex md:flex-col border-r border-zinc-800/80 bg-zinc-950 text-zinc-100 shadow-xl transition-[width] duration-200 ease-out',
+          collapsed ? 'md:w-[4.25rem]' : 'md:w-72',
+        )}
+        aria-label="Main navigation"
       >
-        <div className="flex flex-col flex-grow pt-4 overflow-y-auto min-h-0">
-          <div className={`px-3 flex items-start gap-1 ${collapsed ? 'flex-col items-center' : 'justify-between'}`}>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-4">
+          <div
+            className={cn(
+              'flex items-start gap-2 px-3',
+              collapsed ? 'flex-col items-center' : 'justify-between',
+            )}
+          >
             {!collapsed ? (
               <>
-                <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 flex-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Control Panel</p>
-                  <p className="mt-0.5 text-base font-semibold text-white truncate">Skyen Admin</p>
+                <div className="min-w-0 flex-1 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3 py-2.5">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500">Skyen</p>
+                  <p className="mt-0.5 truncate text-base font-semibold text-white">Admin Panel</p>
                 </div>
                 <button
                   type="button"
                   onClick={collapse}
-                  className="shrink-0 mt-1 rounded-lg border border-slate-600 bg-slate-800/80 p-1.5 text-slate-200 hover:bg-slate-700 hover:text-white"
+                  className="mt-1 shrink-0 rounded-xl border border-zinc-700 bg-zinc-800/90 p-2 text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
                   title="Collapse sidebar"
                   aria-label="Collapse sidebar"
                 >
-                  <Minus className="h-4 w-4" />
+                  <PanelLeftClose className="h-4 w-4" aria-hidden />
                 </button>
               </>
             ) : (
               <button
                 type="button"
                 onClick={expand}
-                className="mx-auto rounded-lg border border-slate-600 bg-slate-800/80 p-2 text-slate-200 hover:bg-slate-700 hover:text-white"
+                className="rounded-xl border border-zinc-700 bg-zinc-800/90 p-2 text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
-                <Plus className="h-5 w-5" />
+                <PanelLeftOpen className="h-5 w-5" aria-hidden />
               </button>
             )}
           </div>
 
-          <div className="mt-6 flex-grow flex flex-col">
-            <nav className={`flex-1 px-2 pb-4 space-y-1 ${collapsed ? 'flex flex-col items-center' : ''}`}>
-              {navItems.map((item) => {
-                const isActive = isActiveItem(item);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    title={collapsed ? item.name : undefined}
-                    className={`group flex items-center rounded-lg transition-colors border ${
-                      collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5 text-sm font-medium'
-                    } ${
-                      isActive
-                        ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/30'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
-                    }`}
-                  >
-                    <item.icon
-                      className={`flex-shrink-0 h-5 w-5 ${
-                        collapsed ? '' : '-ml-1 mr-3'
-                      } ${isActive ? 'text-cyan-300' : 'text-slate-400 group-hover:text-slate-200'}`}
-                      aria-hidden="true"
-                    />
-                    {!collapsed && <span className="truncate">{item.name}</span>}
-                  </Link>
-                );
-              })}
-              <Link
-                href="/settings"
-                title={collapsed ? 'Profile' : undefined}
-                className={`group flex items-center rounded-lg transition-colors border ${
-                  collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5 text-sm font-medium'
-                } ${
-                  router.pathname === '/settings'
-                    ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/30'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
-                }`}
-              >
-                <span
-                  className={`flex-shrink-0 h-5 w-5 rounded-full bg-slate-600 text-[10px] flex items-center justify-center ${
-                    collapsed ? '' : 'mr-3'
-                  }`}
+          <nav className={cn('mt-6 flex-1 space-y-1 px-2 pb-4', collapsed && 'flex flex-col items-center')}>
+            {navItems.map((item) => {
+              const isActive = isActiveItem(item);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  title={collapsed ? item.name : undefined}
+                  className={navLinkClass(isActive, collapsed)}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  Me
-                </span>
-                {!collapsed && <span>Profile</span>}
-              </Link>
-            </nav>
-          </div>
-          <div className={`flex-shrink-0 border-t border-slate-800 p-2 ${collapsed ? 'flex justify-center' : ''}`}>
-            <button
-              onClick={handleLogout}
-              className={`group block rounded-lg hover:bg-red-500/15 border border-slate-700 hover:border-red-400/50 transition ${
-                collapsed ? 'p-2' : 'w-full p-3'
-              }`}
-              title="Logout"
+                  <item.icon
+                    className={cn(
+                      'h-5 w-5 shrink-0',
+                      isActive ? 'text-indigo-300' : 'text-zinc-500 group-hover:text-zinc-200',
+                    )}
+                    aria-hidden="true"
+                  />
+                  {!collapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
+            <Link
+              href="/settings"
+              title={collapsed ? 'Profile' : undefined}
+              className={navLinkClass(router.pathname === '/settings', collapsed)}
+              aria-current={router.pathname === '/settings' ? 'page' : undefined}
             >
-              <div className={`flex items-center ${collapsed ? 'justify-center' : ''}`}>
-                <LogOut
-                  className={`h-5 w-5 text-slate-400 group-hover:text-red-300 ${collapsed ? '' : 'inline-block'}`}
-                />
-                {!collapsed && (
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-slate-200 group-hover:text-red-200">Logout</p>
-                  </div>
+              <Settings
+                className={cn(
+                  'h-5 w-5 shrink-0',
+                  router.pathname === '/settings' ? 'text-indigo-300' : 'text-zinc-500 group-hover:text-zinc-200',
                 )}
-              </div>
-            </button>
-          </div>
+                aria-hidden="true"
+              />
+              {!collapsed && <span>Profile</span>}
+            </Link>
+          </nav>
         </div>
-      </div>
+
+        <div className={cn('shrink-0 border-t border-zinc-800 p-2', collapsed && 'flex justify-center')}>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className={cn(
+              'group block w-full rounded-xl border border-zinc-800 transition hover:border-red-500/40 hover:bg-red-500/10',
+              collapsed ? 'p-2' : 'p-3',
+            )}
+            title="Logout"
+            aria-label="Logout"
+          >
+            <div className={cn('flex items-center', collapsed && 'justify-center')}>
+              <LogOut className="h-5 w-5 text-zinc-500 transition group-hover:text-red-300" aria-hidden />
+              {!collapsed && (
+                <span className="ml-3 text-sm font-medium text-zinc-300 group-hover:text-red-200">Logout</span>
+              )}
+            </div>
+          </button>
+        </div>
+      </aside>
     </>
   );
 }

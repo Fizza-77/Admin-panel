@@ -1,0 +1,22 @@
+/** Build breadcrumb trail from Next.js pathname segments. */
+export function breadcrumbsFromPath(pathname: string): { label: string; href?: string }[] {
+  const segments = pathname
+    .split('/')
+    .filter(Boolean)
+    .filter((s) => !s.startsWith('['));
+
+  const crumbs: { label: string; href?: string }[] = [{ label: 'Home', href: '/' }];
+
+  let path = '';
+  for (const segment of segments) {
+    path += `/${segment}`;
+    const label = segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    crumbs.push({ label, href: path });
+  }
+
+  if (crumbs.length > 0) {
+    delete crumbs[crumbs.length - 1].href;
+  }
+
+  return crumbs;
+}

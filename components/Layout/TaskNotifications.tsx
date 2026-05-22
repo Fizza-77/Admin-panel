@@ -90,43 +90,47 @@ export default function TaskNotifications({ enabled }: TaskNotificationsProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative bg-white p-2 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
+        className="ui-btn-ghost relative !min-h-9 !rounded-xl !px-2.5"
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
       >
         <span className="sr-only">View task notifications</span>
-        <Bell className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+        <Bell className="h-5 w-5 text-zinc-600" aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(100vw-1.5rem,22rem)] rounded-xl border border-slate-200 bg-white shadow-lg z-50">
-          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-            <p className="text-sm font-semibold text-slate-800">Task notifications</p>
+        <div
+          role="dialog"
+          aria-label="Task notifications"
+          className="absolute right-0 z-50 mt-2 w-[min(100vw-1.5rem,22rem)] animate-fade-in rounded-2xl border border-zinc-200/90 bg-white shadow-card"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+            <p className="text-sm font-semibold text-zinc-900">Notifications</p>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => void markAllRead()}
-                className="text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
               >
                 Mark all read
               </button>
             )}
           </div>
-          <ul className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+          <ul className="max-h-72 divide-y divide-zinc-100 overflow-y-auto">
             {loading && items.length === 0 ? (
-              <li className="px-3 py-4 text-sm text-slate-500">Loading…</li>
+              <li className="px-4 py-4 text-sm text-zinc-500">Loading…</li>
             ) : items.length === 0 ? (
-              <li className="px-3 py-4 text-sm text-slate-500">No notifications yet.</li>
+              <li className="px-4 py-6 text-center text-sm text-zinc-500">No notifications yet.</li>
             ) : (
               items.map((n) => (
-                <li key={n.id} className={n.read_at ? 'bg-white' : 'bg-cyan-50/40'}>
+                <li key={n.id} className={n.read_at ? 'bg-white' : 'bg-indigo-50/50'}>
                   <button
                     type="button"
-                    className="w-full text-left px-3 py-2.5 hover:bg-slate-50"
+                    className="w-full px-4 py-3 text-left transition hover:bg-zinc-50"
                     onClick={() => {
                       if (!n.read_at) {
                         void markRead([n.id]);
@@ -134,21 +138,19 @@ export default function TaskNotifications({ enabled }: TaskNotificationsProps) {
                       setOpen(false);
                     }}
                   >
-                    <p className="text-sm font-medium text-slate-900">{n.title}</p>
-                    {n.body && <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{n.body}</p>}
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      {new Date(n.created_at).toLocaleString()}
-                    </p>
+                    <p className="text-sm font-medium text-zinc-900">{n.title}</p>
+                    {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-zinc-600">{n.body}</p>}
+                    <p className="mt-1 text-[10px] text-zinc-400">{new Date(n.created_at).toLocaleString()}</p>
                   </button>
                 </li>
               ))
             )}
           </ul>
-          <div className="border-t border-slate-100 px-3 py-2">
+          <div className="border-t border-zinc-100 px-4 py-2.5">
             <Link
               href="/tasks"
               onClick={() => setOpen(false)}
-              className="text-xs font-medium text-cyan-700 hover:text-cyan-800"
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
             >
               Open tasks board →
             </Link>

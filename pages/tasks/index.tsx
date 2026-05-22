@@ -22,9 +22,6 @@ export default function TasksHomePage({
       <Head>
         <title>Tasks - Skyen Admin</title>
       </Head>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Tasks</h1>
-      </div>
       <TaskKanban permissions={permissions} currentUserId={currentUserId} />
     </AdminLayout>
   );

@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowLeft, Users } from 'lucide-react';
+import { ArrowLeft, PanelLeft, Search, Settings } from 'lucide-react';
 import TaskNotifications from './TaskNotifications';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { useSidebar } from './SidebarContext';
+import { breadcrumbsFromPath } from '@/lib/ui/breadcrumbs';
+import { cn } from '@/lib/ui/cn';
 
 type HeaderProps = {
   permissions?: AppPermissions;
@@ -42,89 +44,104 @@ function initials(permissions?: AppPermissions) {
 export default function Header({ permissions }: HeaderProps) {
   const router = useRouter();
   const { collapsed, expand } = useSidebar();
-  const canBlogs = permissions?.canManageBlogs ?? false;
   const canTasks = permissions?.canManageTasks ?? false;
-  const canUsers = permissions?.canAccessUserManagement ?? false;
   const onRoot = router.pathname === '/';
-  const pageLabel = router.pathname
-    .replace('/sites', 'sites')
-    .replace('/blogs', 'blogs')
-    .replace(/\[|\]/g, '')
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => segment.replace(/-/g, ' '))
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' / ');
+  const crumbs = breadcrumbsFromPath(router.pathname);
+  const pageTitle = crumbs.length > 0 ? crumbs[crumbs.length - 1].label : 'Dashboard';
 
   return (
-    <header className="bg-white/95 backdrop-blur border-b border-slate-200 z-10">
-      <div className="flex items-start sm:items-center justify-between px-3 sm:px-6 lg:px-8 min-h-16 py-3 gap-2 sm:gap-3">
-        <div className="flex items-start sm:items-center gap-1.5 sm:gap-3 min-w-0">
+    <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
+      <div className="flex min-h-[4rem] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {collapsed && (
             <button
               type="button"
               onClick={expand}
-              className="hidden md:inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              className="hidden md:inline-flex ui-btn-ghost !min-h-9 !px-2.5"
               title="Expand sidebar"
+              aria-label="Expand sidebar"
             >
-              +
+              <PanelLeft className="h-4 w-4" aria-hidden />
             </button>
           )}
           {!onRoot && (
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0"
+              className="ui-btn-secondary !min-h-9 shrink-0 !px-3"
+              aria-label="Go back"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Back</span>
             </button>
           )}
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-400 truncate">Skyen Admin</p>
-            <p className="text-sm font-semibold text-slate-800 truncate">{pageLabel || 'Dashboard'}</p>
+            {crumbs.length > 1 && (
+              <nav aria-label="Breadcrumb" className="mb-0.5 hidden sm:flex flex-wrap items-center gap-1 text-[11px] text-zinc-500">
+                {crumbs.slice(0, -1).map((crumb, i) => (
+                  <span key={`${crumb.label}-${i}`} className="inline-flex items-center gap-1">
+                    {i > 0 && <span aria-hidden className="text-zinc-300">/</span>}
+                    {crumb.href ? (
+                      <Link href={crumb.href} className="hover:text-zinc-800 transition-colors">
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span>{crumb.label}</span>
+                    )}
+                  </span>
+                ))}
+              </nav>
+            )}
+            <p className="truncate text-sm font-semibold text-zinc-900 sm:text-base">{pageTitle}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {canBlogs && (
-            <Link
-              href="/"
-              className="hidden sm:inline-flex rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Blog dashboard
-            </Link>
-          )}
-          {canTasks && (
-            <Link
-              href="/tasks"
-              className="hidden sm:inline-flex rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Tasks
-            </Link>
-          )}
-          {canUsers && (
-            <Link
-              href="/admin/users"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            >
-              <Users className="h-3.5 w-3.5" aria-hidden />
-              Users
-            </Link>
-          )}
-          <Link
-            href="/settings"
-            className="hidden sm:inline-flex rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 max-w-[140px] truncate"
-            title={permissions?.accountEmail ?? 'Profile'}
-          >
-            {displayLabel(permissions)}
-          </Link>
+
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="hidden lg:flex items-center">
+            <label className="sr-only" htmlFor="header-quick-search">
+              Quick search
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+              <input
+                id="header-quick-search"
+                type="search"
+                placeholder="Search…"
+                className="ui-input !min-h-9 w-44 xl:w-52 !py-1.5 !pl-9 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canTasks) {
+                    const v = (e.target as HTMLInputElement).value.trim();
+                    const q = v ? `?q=${encodeURIComponent(v)}` : '';
+                    void router.push(`/tasks${q}`);
+                  }
+                }}
+                aria-describedby="header-search-hint"
+              />
+            </div>
+            <p id="header-search-hint" className="sr-only">
+              Press Enter to search tasks
+            </p>
+          </div>
+
           <TaskNotifications enabled={canTasks} />
+
           <Link
             href="/settings"
-            className="inline-flex h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-cyan-100 items-center justify-center text-cyan-800 font-bold text-xs sm:text-sm hover:bg-cyan-200"
-            title="Profile settings"
+            className={cn(
+              'inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-200 sm:h-10 sm:w-10 sm:text-sm',
+            )}
+            title={permissions?.accountEmail ?? 'Profile settings'}
+            aria-label={`Profile: ${displayLabel(permissions)}`}
           >
-            {initials(permissions)}
+            <span aria-hidden>{initials(permissions)}</span>
+          </Link>
+
+          <Link
+            href="/settings"
+            className="ui-btn-ghost !min-h-9 hidden sm:inline-flex"
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       </div>
