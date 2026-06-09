@@ -32,8 +32,8 @@ export default async function handler(
     if (req.method === 'PUT') {
       const body = req.body as BlogBody;
       const status = body?.status === 'draft' ? 'draft' : 'published';
-      if (!body?.title || !body?.slug || !body?.display_date) {
-        return res.status(400).json({ message: 'Missing required fields: title, slug, display_date' });
+      if (!body?.title || !body?.slug || !(body?.date_published || body?.display_date)) {
+        return res.status(400).json({ message: 'Missing required fields: title, slug, date_published' });
       }
 
       const { data: slugConflict } = await supabase

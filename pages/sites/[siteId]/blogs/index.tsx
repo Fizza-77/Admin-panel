@@ -8,6 +8,8 @@ import { setupUnlockHref } from '@/lib/setup';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogReactions from '@/components/BlogReactions';
 import { supabase } from '@/lib/supabase/server';
+import { listBlogsForSite } from '@/lib/blogs/listBlogsForSite';
+import DataLoadError from '@/components/ui/DataLoadError';
 import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Site } from '@/types/site';
@@ -22,13 +24,17 @@ type Blog = {
   description: string | null;
   slug: string;
   cover_image_url: string | null;
-  display_date: string | null;
+  date_published: string | null;
+  date_modified: string | null;
+  main_entity_of_page: string | null;
 };
 
 interface SiteBlogsPageProps {
   site: Site;
   blogs: Blog[];
   reactionCountsByBlog: Record<string, ReactionCounts>;
+  blogsLoadError: string | null;
+  blogsLoadWarning: string | null;
   permissions: AppPermissions;
 }
 
@@ -46,17 +52,8 @@ export const getServerSideProps = requireAuthentication(
     return { notFound: true };
   }
 
-  const { data: blogs, error: blogsError } = await supabase
-    .from('blogs')
-    .select('id,title,status,description,slug,cover_image_url,display_date,created_at')
-    .eq('site_id', site.id)
-    .order('created_at', { ascending: false });
-
-  if (blogsError) {
-    console.error('Error fetching blogs:', blogsError);
-  }
-
-  const safeBlogs = Array.isArray(blogs) ? blogs : [];
+  const blogsResult = await listBlogsForSite(site.id);
+  const safeBlogs = blogsResult.data;
   const blogIds = safeBlogs.map((blog) => blog.id).filter(Boolean);
   const reactionCountsByBlog: Record<string, ReactionCounts> = {};
 
@@ -87,12 +84,21 @@ export const getServerSideProps = requireAuthentication(
       site,
       blogs: safeBlogs,
       reactionCountsByBlog,
+      blogsLoadError: blogsResult.ok ? null : blogsResult.error,
+      blogsLoadWarning: blogsResult.ok ? blogsResult.warning : null,
     },
   };
   }),
 );
 
-export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog, permissions }: SiteBlogsPageProps) {
+export default function SiteBlogsPage({
+  site,
+  blogs,
+  reactionCountsByBlog,
+  blogsLoadError,
+  blogsLoadWarning,
+  permissions,
+}: SiteBlogsPageProps) {
   const router = useRouter();
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -191,7 +197,24 @@ export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog, permi
         </div>
       )}
 
-      {safeBlogs.length === 0 ? (
+      {blogsLoadError && (
+        <DataLoadError
+          className="mb-6"
+          title="Could not load blogs"
+          message="The database query failed. This is not the same as having zero blog posts."
+          detail={blogsLoadError}
+        />
+      )}
+
+      {!blogsLoadError && blogsLoadWarning && (
+        <DataLoadError
+          className="mb-6 border-amber-200 bg-amber-50 text-amber-900 [&_p]:text-amber-800"
+          title="Blogs loaded with a warning"
+          message={blogsLoadWarning}
+        />
+      )}
+
+      {!blogsLoadError && safeBlogs.length === 0 ? (
         <div className="text-center py-14 sm:py-20 bg-white rounded-xl border border-gray-200 border-dashed">
           <FileText className="mx-auto h-12 w-12 text-gray-300 mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No blogs found</h3>
@@ -232,9 +255,9 @@ export default function SiteBlogsPage({ site, blogs, reactionCountsByBlog, permi
                     {blog.status === 'draft' ? 'Draft' : 'Published'}
                   </span>
                 </div>
-                {formatDisplayDate(blog.display_date) && (
+                {formatDisplayDate(blog.date_published) && (
                   <p className="text-xs text-gray-500 font-medium mb-3">
-                    {formatDisplayDate(blog.display_date)}
+                    {formatDisplayDate(blog.date_published)}
                   </p>
                 )}
                 <p className="text-sm text-gray-600 line-clamp-3 mb-4 flex-1">

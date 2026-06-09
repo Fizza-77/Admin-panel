@@ -52,7 +52,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('app_profiles')
       .select('user_id, display_name')
       .in('user_id', ids);
-    if (!pErr && profiles) {
+    if (pErr) {
+      reportError(pErr, { source: 'api/tasks/users profiles' });
+      return res.status(500).json({ message: 'Failed to load user display names', detail: pErr.message });
+    }
+    if (profiles) {
       nameById = new Map(profiles.map((p) => [p.user_id, p.display_name]));
     }
   }

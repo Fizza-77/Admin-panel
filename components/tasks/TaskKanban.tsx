@@ -268,8 +268,9 @@ function isAssigneeOnly(task: TaskWithRelations, currentUserId: string, isSuper:
 }
 
 export default function TaskKanban({ permissions, currentUserId }: TaskKanbanProps) {
-  const isSuper = permissions.canAdministerTasks;
-  const canAddTags = permissions.canCreateTaskTags;
+  const canUseTasks = permissions.canManageTasks;
+  const isSuper = canUseTasks && permissions.canAdministerTasks;
+  const canAddTags = canUseTasks && permissions.canCreateTaskTags;
 
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);

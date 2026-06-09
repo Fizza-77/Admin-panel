@@ -3,6 +3,7 @@ import { assertSetupGateAllowed } from '@/lib/auth';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { supabase } from '@/lib/supabase/server';
 import { listSites } from '@/lib/sites';
+import { reportError } from '@/lib/monitoring';
 
 type SuccessResponse = {
   success: true;
@@ -22,6 +23,7 @@ type SuccessResponse = {
 
 type ErrorResponse = {
   message: string;
+  detail?: string;
 };
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
@@ -39,8 +41,8 @@ export default async function handler(
     const { sites, error } = await listSites();
 
     if (error) {
-      console.error('Error loading sites:', error);
-      return res.status(500).json({ message: 'Failed to load sites' });
+      reportError(new Error(error), { source: 'api/sites GET listSites' });
+      return res.status(500).json({ message: 'Failed to load sites', detail: error });
     }
 
     return res.status(200).json({ success: true, sites });

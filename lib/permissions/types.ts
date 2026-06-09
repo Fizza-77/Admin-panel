@@ -15,4 +15,9 @@ export type AppPermissions = {
   displayName?: string | null;
   /** Signed-in user email (session) for header / settings */
   accountEmail?: string | null;
+  /**
+   * Set when `app_profiles` could not be loaded or bootstrapped.
+   * Do not treat accompanying permission flags as authoritative.
+   */
+  profileLoadError?: string | null;
 };

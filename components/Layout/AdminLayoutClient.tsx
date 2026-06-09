@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { SidebarProvider, useSidebar } from './SidebarContext';
 import type { AppPermissions } from '@/lib/permissions/types';
+import DataLoadError from '@/components/ui/DataLoadError';
 
 type AdminLayoutClientProps = {
   children: React.ReactNode;
@@ -24,7 +25,17 @@ function AdminLayoutInner({ children, permissions }: AdminLayoutClientProps) {
           className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-8"
           tabIndex={-1}
         >
-          <div className={collapsed ? 'mx-auto w-full max-w-none' : 'mx-auto w-full max-w-7xl'}>{children}</div>
+          <div className={collapsed ? 'mx-auto w-full max-w-none' : 'mx-auto w-full max-w-7xl'}>
+            {permissions?.profileLoadError && (
+              <DataLoadError
+                className="mb-6"
+                title="Permission profile unavailable"
+                message="Your session is valid, but access flags could not be loaded from the database. Features may be blocked until this is resolved."
+                detail={permissions.profileLoadError}
+              />
+            )}
+            {children}
+          </div>
         </main>
       </div>
     </div>

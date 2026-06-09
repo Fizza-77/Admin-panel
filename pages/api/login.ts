@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { supabase as supabaseAdmin } from '@/lib/supabase/server';
 import { setSessionCookiesOnResponse } from '@/lib/auth/sessionCookies';
-import { isBootstrapOwnerEmail } from '@/lib/permissions/getAppProfile';
+import { ensureAppProfileRow, isBootstrapOwnerEmail } from '@/lib/permissions/getAppProfile';
 import { reportError } from '@/lib/monitoring';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,6 +63,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({ message: 'This email is not allowed to access the admin panel' });
       }
     }
+  }
+
+  const profileEnsure = await ensureAppProfileRow(data.user.id);
+  if (!profileEnsure.ok) {
+    reportError(new Error(profileEnsure.error ?? 'Profile bootstrap failed'), {
+      source: 'login.ensureAppProfileRow',
+      userId: data.user.id,
+    });
+    await supabaseAdmin.auth.admin.signOut(data.session.access_token);
+    return res.status(500).json({
+      message: 'Signed in but could not initialize your access profile. Contact an administrator.',
+      detail: profileEnsure.error,
+    });
   }
 
   setSessionCookiesOnResponse(res, data.session.access_token, data.session.refresh_token);

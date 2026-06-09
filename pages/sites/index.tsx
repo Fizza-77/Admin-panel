@@ -9,34 +9,45 @@ import type { AppPermissions } from '@/lib/permissions/types';
 interface SitesPageProps {
   sites: Site[];
   hasSitesLoadError: boolean;
+  sitesLoadError: string | null;
+  sitesLoadWarning: string | null;
   permissions: AppPermissions;
 }
 
 export const getServerSideProps = requireAuthentication(
   requirePermission({ blogs: true }, async () => {
-    const { sites, error } = await listSites();
-
-    if (error) {
-      console.error('Error loading sites:', error);
-    }
+    const { sites, error, warning } = await listSites();
 
     return {
       props: {
         sites,
         hasSitesLoadError: Boolean(error),
+        sitesLoadError: error,
+        sitesLoadWarning: warning,
       },
     };
   }),
 );
 
-export default function SitesPage({ sites, hasSitesLoadError, permissions }: SitesPageProps) {
+export default function SitesPage({
+  sites,
+  hasSitesLoadError,
+  sitesLoadError,
+  sitesLoadWarning,
+  permissions,
+}: SitesPageProps) {
   return (
     <AdminLayout permissions={permissions}>
       <Head>
         <title>Sites - Admin</title>
       </Head>
 
-      <SitesList sites={sites} hasLoadError={hasSitesLoadError} />
+      <SitesList
+        sites={sites}
+        hasLoadError={hasSitesLoadError}
+        loadErrorMessage={sitesLoadError}
+        loadWarningMessage={sitesLoadWarning}
+      />
     </AdminLayout>
   );
 }

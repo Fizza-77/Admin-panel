@@ -43,7 +43,7 @@ export async function getBlogsForSite(siteId: string) {
     .from('blogs')
     .select('*')
     .eq('site_id', siteId)
-    .order('display_date', { ascending: false });
+    .order('date_published', { ascending: false });
 
   if (error) throw error;
   return blogs ?? [];

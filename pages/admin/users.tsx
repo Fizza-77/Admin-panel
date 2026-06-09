@@ -66,7 +66,10 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       const res = await fetch(`/api/admin/users?${q.toString()}`, { credentials: 'include' });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(body?.message || 'Failed to load users');
+        const detail = typeof body?.detail === 'string' ? body.detail : null;
+        throw new Error(
+          detail ? `${body?.message || 'Failed to load users'}: ${detail}` : body?.message || 'Failed to load users',
+        );
       }
       setUsers(Array.isArray(body?.users) ? body.users : []);
       setPage(typeof body?.page === 'number' ? body.page : pageNum);

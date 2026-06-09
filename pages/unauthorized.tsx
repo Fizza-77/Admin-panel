@@ -11,7 +11,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
   if (!user) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const permissions = await getAppProfile(user.id, user.email);
+  const { permissions } = await getAppProfile(user.id, user.email);
   return { props: { permissions } };
 });
 
@@ -24,9 +24,15 @@ export default function UnauthorizedPage({ permissions }: { permissions: AppPerm
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-6 shadow-sm max-w-lg">
         <h1 className="text-lg font-semibold text-slate-900">No access yet</h1>
         <p className="mt-2 text-slate-700">
-          You are signed in, but your account does not have permission to use the blog or task areas yet. Ask an admin to
-          grant access, or open user management if you administer accounts.
+          {permissions.profileLoadError
+            ? 'You are signed in, but your access profile could not be loaded from the database. This is different from having no permissions — an administrator should check migrations and /api/health.'
+            : 'You are signed in, but your account does not have permission to use the blog or task areas yet. Ask an admin to grant access, or open user management if you administer accounts.'}
         </p>
+        {permissions.profileLoadError && (
+          <p className="mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800 font-mono break-all">
+            {permissions.profileLoadError}
+          </p>
+        )}
         <div className="mt-6 flex flex-wrap gap-3">
           {permissions.canAccessUserManagement && (
             <Link

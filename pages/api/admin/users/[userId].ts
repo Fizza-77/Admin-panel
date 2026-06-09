@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase/server';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
+import { fetchAppProfileRow } from '@/lib/permissions/appProfileDb';
 import { isPrimaryAdminEmail } from '@/lib/permissions/primaryAdmin';
 import { reportError } from '@/lib/monitoring';
 
@@ -73,14 +74,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const targetIsPrimary = isPrimaryAdminEmail(authTarget.user.email);
 
-  const { data: existing, error: readErr } = await supabase
-    .from('app_profiles')
-    .select('display_name, can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const { row: existing, error: readErr } = await fetchAppProfileRow(userId);
 
   if (readErr) {
-    reportError(readErr, { source: 'api/admin/users PATCH read' });
     return res.status(500).json({ message: 'Failed to read profile' });
   }
 

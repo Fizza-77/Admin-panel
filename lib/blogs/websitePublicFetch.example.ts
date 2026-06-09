@@ -7,6 +7,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { BLOG_SEO_SELECT } from '@/lib/blogs/blogRow';
 
 export type SiteBlogPageCopy = {
   blog_page_meta_title: string | null;
@@ -33,10 +34,34 @@ export type BlogPostRow = {
   slug: string;
   description: string | null;
   meta_description: string | null;
-  display_date: string;
+  meta_title: string | null;
+  /** Schema.org datePublished */
+  date_published: string;
+  /** Schema.org dateModified */
+  date_modified: string | null;
+  /** Schema.org mainEntityOfPage */
+  main_entity_of_page: string | null;
+  canonical_url: string | null;
   cover_image_url: string | null;
   category_id: string | null;
+  author_name: string | null;
+  keywords: string | null;
+  in_language: string | null;
+  publisher_name: string | null;
+  publisher_logo_url: string | null;
+  article_section: string | null;
+  content: string | null;
+  /** Per-article FAQ schema JSON — unique to this blog (SEO-provided) */
+  faq_schema: Record<string, unknown> | unknown[] | null;
 };
+
+/** FAQ JSON-LD already stored on the blog row — output as-is on the article page. */
+export function getBlogFaqJsonLd(blog: Pick<BlogPostRow, 'faq_schema'>) {
+  if (!blog.faq_schema || (typeof blog.faq_schema === 'object' && Object.keys(blog.faq_schema).length === 0)) {
+    return null;
+  }
+  return blog.faq_schema;
+}
 
 export type ReactionType = 'love' | 'thumbs_up' | 'thumbs_down' | 'celebrationpop' | 'clap';
 
@@ -117,15 +142,15 @@ export type BlogWithCategory = BlogPostRow & {
   category: Pick<BlogCategoryRow, 'id' | 'slug' | 'name' | 'description'> | null;
 };
 
-/** Blog listing; merges `blog_categories` in memory (avoids brittle embed names). */
+/** Blog listing with full SEO / Schema.org fields for JSON-LD. */
 export async function getBlogsForSite(supabase: SupabaseClient, siteId: string): Promise<BlogWithCategory[]> {
   const [{ data: blogs, error: blogsError }, { data: cats }] = await Promise.all([
     supabase
       .from('blogs')
-      .select('id,site_id,status,title,slug,description,meta_description,display_date,cover_image_url,category_id')
+      .select(BLOG_SEO_SELECT)
       .eq('site_id', siteId)
       .eq('status', 'published')
-      .order('display_date', { ascending: false }),
+      .order('date_published', { ascending: false }),
     supabase.from('blog_categories').select('id,site_id,slug,name,description').eq('site_id', siteId),
   ]);
 

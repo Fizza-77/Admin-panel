@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
+import { listCategoriesForSite } from '@/lib/categories/listCategoriesForSite';
+import DataLoadError from '@/components/ui/DataLoadError';
 import type { Site } from '@/types/site';
 import type { BlogCategory } from '@/types/blogCategory';
 import { Loader2, Plus, Trash2, ArrowLeft } from 'lucide-react';
@@ -16,6 +18,7 @@ import type { AppPermissions } from '@/lib/permissions/types';
 interface PageProps {
   site: Site;
   categories: BlogCategory[];
+  categoriesLoadError: string | null;
   permissions: AppPermissions;
 }
 
@@ -33,16 +36,13 @@ export const getServerSideProps = requireAuthentication(
     return { notFound: true };
   }
 
-  const { data: categories } = await supabase
-    .from('blog_categories')
-    .select('id,site_id,slug,name,description,sort_order')
-    .eq('site_id', siteId)
-    .order('sort_order', { ascending: true });
+  const categoriesResult = await listCategoriesForSite(siteId);
 
   return {
     props: {
       site,
-      categories: categories ?? [],
+      categories: categoriesResult.data,
+      categoriesLoadError: categoriesResult.ok ? null : categoriesResult.error,
     },
   };
   }),
@@ -50,7 +50,12 @@ export const getServerSideProps = requireAuthentication(
 
 const SLUG_HINT = /^[a-z0-9-]+$/;
 
-export default function SiteCategoriesPage({ site, categories: initialCategories, permissions }: PageProps) {
+export default function SiteCategoriesPage({
+  site,
+  categories: initialCategories,
+  categoriesLoadError,
+  permissions,
+}: PageProps) {
   const router = useRouter();
   const [categories, setCategories] = useState(Array.isArray(initialCategories) ? initialCategories : []);
   const [slug, setSlug] = useState('');
@@ -170,12 +175,21 @@ export default function SiteCategoriesPage({ site, categories: initialCategories
         </p>
       </div>
 
+      {categoriesLoadError && (
+        <DataLoadError
+          className="mb-6"
+          title="Could not load categories"
+          message="The database query failed. This is not the same as having zero categories."
+          detail={categoriesLoadError}
+        />
+      )}
+
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Existing categories</h2>
-          {categories.length === 0 ? (
+          {!categoriesLoadError && categories.length === 0 ? (
             <p className="text-sm text-slate-500">No categories yet. Add one on the right.</p>
-          ) : (
+          ) : categories.length === 0 ? null : (
             <ul className="divide-y divide-slate-100">
               {(Array.isArray(categories) ? categories : []).map((c) => (
                 <li key={c.id} className="py-3 flex justify-between gap-3 sm:gap-4 items-start">

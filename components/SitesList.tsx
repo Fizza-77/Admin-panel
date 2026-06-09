@@ -4,13 +4,21 @@ import { setupUnlockHref } from '@/lib/setup';
 import type { Site } from '@/types/site';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import DataLoadError from '@/components/ui/DataLoadError';
 
 interface SitesListProps {
   sites: Site[];
   hasLoadError?: boolean;
+  loadErrorMessage?: string | null;
+  loadWarningMessage?: string | null;
 }
 
-export default function SitesList({ sites, hasLoadError = false }: SitesListProps) {
+export default function SitesList({
+  sites,
+  hasLoadError = false,
+  loadErrorMessage = null,
+  loadWarningMessage = null,
+}: SitesListProps) {
   const connectedSites = sites.filter((site) => site.site_key && site.site_key.trim().length > 0);
   const incompletesSites = sites.filter((site) => !site.site_key || !site.site_key.trim().length);
 
@@ -29,12 +37,20 @@ export default function SitesList({ sites, hasLoadError = false }: SitesListProp
       />
 
       {hasLoadError && (
-        <div
-          className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          role="alert"
-        >
-          Could not load sites right now. Please refresh the page and check server logs if this keeps happening.
-        </div>
+        <DataLoadError
+          className="mb-6"
+          title="Could not load sites"
+          message="The database query failed. This is not the same as having zero sites."
+          detail={loadErrorMessage}
+        />
+      )}
+
+      {!hasLoadError && loadWarningMessage && (
+        <DataLoadError
+          className="mb-6 border-amber-200 bg-amber-50 text-amber-900 [&_p]:text-amber-800"
+          title="Sites loaded with a warning"
+          message={loadWarningMessage}
+        />
       )}
 
       {connectedSites.length === 0 && !hasLoadError ? (

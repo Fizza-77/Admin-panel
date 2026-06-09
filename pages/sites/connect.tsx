@@ -55,7 +55,7 @@ const { data: blogs } = await supabase
   .select('*')
   .eq('site_id', site.id)
   .eq('status', 'published')
-  .order('display_date', { ascending: false });`;
+  .order('date_published', { ascending: false });`;
 
   const helperFunctionsSnippet = `export async function getSiteByKey(supabase, siteKey) {
   const { data: site, error } = await supabase
@@ -75,7 +75,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
     .select('*')
     .eq('site_id', site.id)
     .eq('status', 'published')
-    .order('display_date', { ascending: false });
+    .order('date_published', { ascending: false });
 
   if (error) throw error;
   return blogs ?? [];

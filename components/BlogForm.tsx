@@ -11,6 +11,7 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
 
 import { Loader2, Save, Send } from 'lucide-react';
 import { reportError } from '@/lib/monitoring';
+import { faqSchemaToInput } from '@/lib/blogs/faqSchema';
 
 type CategoryOption = { id: string; name: string };
 
@@ -46,6 +47,7 @@ export default function BlogForm({
   const [slugError, setSlugError] = useState('');
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const prevSiteIdRef = useRef<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm({
@@ -55,7 +57,8 @@ export default function BlogForm({
       meta_title: initialData?.meta_title || '',
       description: initialData?.description || '',
       meta_description: initialData?.meta_description || '',
-      display_date: toSafeDateInputValue(initialData?.display_date),
+      date_published: toSafeDateInputValue(initialData?.date_published ?? initialData?.display_date),
+      main_entity_of_page: initialData?.main_entity_of_page || '',
       cover_image_url: initialData?.cover_image_url || '',
       content: initialData?.content || '',
       author_name: initialData?.author_name || '',
@@ -65,6 +68,7 @@ export default function BlogForm({
       publisher_logo_url: initialData?.publisher_logo_url || '',
       canonical_url: initialData?.canonical_url || '',
       category_id: initialData?.category_id || '',
+      faq_schema: faqSchemaToInput(initialData?.faq_schema),
     },
   });
 
@@ -86,6 +90,7 @@ export default function BlogForm({
       return;
     }
     setCategoriesLoading(true);
+    setCategoriesError(null);
     (async () => {
       try {
         const response = await fetch(`/api/sites/${siteId}/blog-categories`, {
@@ -93,7 +98,11 @@ export default function BlogForm({
         });
         if (cancelled) return;
         if (!response.ok) {
+          const errBody = await response.json().catch(() => ({}));
+          const msg = errBody?.message || `Failed to load categories (${response.status})`;
+          setCategoriesError(msg);
           setCategories([]);
+          reportError(new Error(msg), { source: 'BlogForm.loadCategories.http', siteId, status: response.status });
           return;
         }
         const body = await response.json().catch(() => ({}));
@@ -109,6 +118,7 @@ export default function BlogForm({
       } catch (error) {
         reportError(error, { source: 'BlogForm.loadCategories', siteId });
         if (!cancelled) {
+          setCategoriesError(error instanceof Error ? error.message : 'Failed to load categories');
           setCategories([]);
         }
       } finally {
@@ -168,8 +178,8 @@ export default function BlogForm({
       if (!siteId) {
         throw new Error('Missing site id');
       }
-      if (!data?.title || !data?.slug || !data?.display_date) {
-        throw new Error('Title, slug, and display date are required');
+      if (!data?.title || !data?.slug || !data?.date_published) {
+        throw new Error('Title, slug, and date published are required');
       }
 
       const isUnique = await checkSlugUnique(data.slug);
@@ -188,7 +198,8 @@ export default function BlogForm({
         meta_title: data.meta_title,
         description: data.description,
         meta_description: data.meta_description,
-        display_date: data.display_date,
+        date_published: data.date_published,
+        main_entity_of_page: data.main_entity_of_page || null,
         cover_image_url: data.cover_image_url,
         content: data.content,
         author_name: data.author_name || null,
@@ -199,6 +210,7 @@ export default function BlogForm({
         publisher_logo_url: data.publisher_logo_url || null,
         canonical_url: data.canonical_url || null,
         category_id: data.category_id || null,
+        faq_schema: data.faq_schema || null,
       };
 
       const saveResponse = await fetch(
@@ -328,7 +340,10 @@ export default function BlogForm({
               {categoriesLoading && (
                 <p className="mt-1 text-xs text-gray-500">Loading categories…</p>
               )}
-              {!categoriesLoading && categories.length === 0 && (
+              {categoriesError && (
+                <p className="mt-1 text-xs text-red-600">{categoriesError}</p>
+              )}
+              {!categoriesLoading && !categoriesError && categories.length === 0 && (
                 <p className="mt-1 text-xs text-amber-800">
                   No categories configured for this site.
                 </p>
@@ -345,6 +360,22 @@ export default function BlogForm({
                 className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border"
                 placeholder="Brief summary for blog cards and JSON-LD description..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                FAQ schema <span className="text-gray-400 font-normal">(schema.org FAQPage)</span>
+              </label>
+              <textarea
+                {...register('faq_schema')}
+                rows={8}
+                className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border font-mono text-xs"
+                placeholder='Paste FAQPage JSON-LD for this article only, e.g. { "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [...] }'
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Optional. Unique per blog — saved in <code className="rounded bg-gray-100 px-1">faq_schema</code> and
+                fetched on each article page.
+              </p>
             </div>
           </div>
         </div>
@@ -368,14 +399,32 @@ export default function BlogForm({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Display date * <span className="text-gray-400 font-normal">(datePublished)</span>
+                  datePublished <span className="text-gray-400 font-normal">(required)</span>
                 </label>
                 <input
                   type="date"
-                  {...register('display_date', { required: 'Date is required' })}
+                  {...register('date_published', { required: 'datePublished is required' })}
                   className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
                 />
+                {errors.date_published && (
+                  <p className="mt-1 text-sm text-red-600">{errors.date_published.message as string}</p>
+                )}
               </div>
+
+              {isEdit && initialData?.date_modified && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    dateModified <span className="text-gray-400 font-normal">(auto-updated on save)</span>
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={new Date(initialData.date_modified).toLocaleString()}
+                    className="block w-full border-gray-200 bg-gray-50 rounded-lg py-2.5 px-3 border text-sm text-gray-600"
+                    aria-readonly="true"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -477,6 +526,18 @@ export default function BlogForm({
                 <input
                   type="url"
                   {...register('canonical_url')}
+                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  placeholder="https://yoursite.com/blog/slug"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  mainEntityOfPage <span className="text-gray-400 font-normal">(page @id)</span>
+                </label>
+                <input
+                  type="url"
+                  {...register('main_entity_of_page')}
                   className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
                   placeholder="https://yoursite.com/blog/slug"
                 />

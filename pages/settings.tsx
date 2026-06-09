@@ -13,7 +13,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
   if (!user) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const permissions = await getAppProfile(user.id, user.email);
+  const { permissions } = await getAppProfile(user.id, user.email);
   return { props: { permissions } };
 });
 

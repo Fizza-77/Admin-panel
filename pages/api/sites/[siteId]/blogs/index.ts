@@ -40,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'POST') {
       const body = req.body as BlogBody;
       const status = body?.status === 'draft' ? 'draft' : 'published';
-      if (!body?.title || !body?.slug || !body?.display_date) {
-        return res.status(400).json({ message: 'Missing required fields: title, slug, display_date' });
+      if (!body?.title || !body?.slug || !(body?.date_published || body?.display_date)) {
+        return res.status(400).json({ message: 'Missing required fields: title, slug, date_published' });
       }
 
       let slugQuery = supabase.from('blogs').select('id').eq('site_id', siteId).eq('slug', body.slug);

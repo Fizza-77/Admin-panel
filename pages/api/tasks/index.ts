@@ -61,8 +61,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .order('updated_at', { ascending: false });
 
     if (!isSuper) {
-      const assigneeTaskIds = await getTaskIdsAssignedToUser(userId);
-      query = query.or(orFilterForVisibleTasks(userId, assigneeTaskIds));
+      const assigneeResult = await getTaskIdsAssignedToUser(userId);
+      if (!assigneeResult.ok) {
+        return res.status(500).json({
+          message: 'Failed to load task visibility',
+          detail: assigneeResult.error,
+        });
+      }
+      query = query.or(orFilterForVisibleTasks(userId, assigneeResult.taskIds));
     }
 
     if (taskIdsByTag) {

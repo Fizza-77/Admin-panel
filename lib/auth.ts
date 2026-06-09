@@ -165,7 +165,17 @@ export function requirePermission(
       };
     }
 
-    const permissions = await getAppProfile(user.id, user.email);
+    const { permissions } = await getAppProfile(user.id, user.email);
+
+    if (permissions.profileLoadError && !permissions.isPrimaryAdmin) {
+      const message = encodeURIComponent(permissions.profileLoadError);
+      return {
+        redirect: {
+          destination: `/profile-error?message=${message}`,
+          permanent: false,
+        },
+      };
+    }
 
     if (needs.blogs && !permissions.canManageBlogs) {
       return {

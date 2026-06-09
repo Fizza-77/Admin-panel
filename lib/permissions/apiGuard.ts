@@ -20,7 +20,15 @@ export async function requireApiPermission(
     return { ok: false, status: 401, message: 'Unauthorized' };
   }
 
-  const permissions = await getAppProfile(user.id, user.email);
+  const { permissions } = await getAppProfile(user.id, user.email);
+
+  if (permissions.profileLoadError) {
+    return {
+      ok: false,
+      status: 503,
+      message: `Permission system unavailable: ${permissions.profileLoadError}`,
+    };
+  }
 
   if (needs.blogs && !permissions.canManageBlogs) {
     return { ok: false, status: 403, message: 'You do not have access to blog management.' };
