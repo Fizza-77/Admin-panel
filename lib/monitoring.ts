@@ -15,6 +15,18 @@ function toSerializableError(error: unknown): SerializableError {
     };
   }
 
+  if (error && typeof error === 'object' && 'message' in error) {
+    const msg = (error as { message?: unknown }).message;
+    const code = (error as { code?: unknown }).code;
+    const message =
+      typeof msg === 'string'
+        ? code
+          ? `${msg} (code ${String(code)})`
+          : msg
+        : 'Unknown error';
+    return { name: 'PostgrestError', message };
+  }
+
   return {
     name: 'UnknownError',
     message: typeof error === 'string' ? error : 'Unknown error',

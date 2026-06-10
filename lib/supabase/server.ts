@@ -12,6 +12,12 @@ if (!keyStatus.valid) {
 
 export const supabaseServiceRoleKeyStatus = keyStatus;
 
+if (process.env.NODE_ENV === 'production') {
+  console.info(
+    `[Supabase] service_role key valid=${keyStatus.valid} role=${keyStatus.role ?? 'unknown'} matches_anon=${keyStatus.matchesAnonKey}`,
+  );
+}
+
 export const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
     persistSession: false,
