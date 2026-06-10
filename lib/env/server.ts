@@ -1,3 +1,15 @@
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+const projectRoot = process.cwd();
+
+// Load env files. In production, .env on disk wins over stale PM2-injected values.
+config({ path: resolve(projectRoot, '.env.local') });
+config({ path: resolve(projectRoot, '.env') });
+if (process.env.NODE_ENV === 'production') {
+  config({ path: resolve(projectRoot, '.env'), override: true });
+}
+
 const requiredServerEnv = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
@@ -19,7 +31,7 @@ function getEnv(name: ServerEnvKey): string {
     );
   }
 
-  return value;
+  return value.trim();
 }
 
 export const env = {
@@ -30,4 +42,3 @@ export const env = {
   CLOUDINARY_API_KEY: getEnv('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: getEnv('CLOUDINARY_API_SECRET'),
 } as const;
-

@@ -46,19 +46,46 @@ async function selectProfileByColumns(userId: string, columns: string) {
   return supabase.from('app_profiles').select(columns).eq('user_id', userId).maybeSingle();
 }
 
+/** SECURITY DEFINER fallback — bypasses RLS when service_role JWT is correct. */
+async function fetchAppProfileRowViaRpc(userId: string): Promise<ProfileFetchResult> {
+  const { data, error } = await supabase.rpc('svc_get_app_profile', { p_user_id: userId });
+  if (error) {
+    reportError(error, { source: 'fetchAppProfileRowViaRpc', userId });
+    return { row: null, error: enrichDbError(error) };
+  }
+  if (!data || typeof data !== 'object') {
+    return { row: null, error: null };
+  }
+  return { row: normalizeProfileRow(data as Record<string, unknown>), error: null };
+}
+
+async function upsertDefaultAppProfileViaRpc(userId: string): Promise<UpsertProfileResult> {
+  const { error } = await supabase.rpc('svc_upsert_default_app_profile', { p_user_id: userId });
+  if (!error) {
+    return { ok: true };
+  }
+  reportError(error, { source: 'upsertDefaultAppProfileViaRpc', userId });
+  return { ok: false, error: enrichDbError(error) };
+}
+
 export async function fetchAppProfileRow(userId: string): Promise<ProfileFetchResult> {
   let lastError: DbErrorLike | null = null;
+  let sawRlsError = false;
 
   for (const columns of SELECT_COLUMN_TIERS) {
     const { data, error } = await selectProfileByColumns(userId, columns);
     if (!error) {
       const raw = data as unknown as Record<string, unknown> | null;
-      return {
-        row: raw ? normalizeProfileRow(raw) : null,
-        error: null,
-      };
+      if (raw) {
+        return { row: normalizeProfileRow(raw), error: null };
+      }
+      continue;
     }
     lastError = error;
+    if (isRlsPolicyError(error)) {
+      sawRlsError = true;
+      break;
+    }
     if (isUndefinedColumnError(error)) {
       continue;
     }
@@ -66,10 +93,21 @@ export async function fetchAppProfileRow(userId: string): Promise<ProfileFetchRe
     return { row: null, error: enrichDbError(error) };
   }
 
-  if (lastError) {
-    reportError(lastError, { source: 'fetchAppProfileRow.exhausted', userId });
+  if (sawRlsError || lastError) {
+    const rpc = await fetchAppProfileRowViaRpc(userId);
+    if (rpc.row || !rpc.error) {
+      return rpc;
+    }
+    if (lastError) {
+      reportError(lastError, { source: 'fetchAppProfileRow.exhausted', userId });
+    }
+    return {
+      row: null,
+      error: rpc.error ?? (lastError ? enrichDbError(lastError) : { message: 'Failed to load profile' }),
+    };
   }
-  return { row: null, error: lastError };
+
+  return { row: null, error: null };
 }
 
 export type ProfilesBatchResult = {
@@ -172,16 +210,29 @@ export async function upsertDefaultAppProfile(userId: string): Promise<UpsertPro
   ];
 
   let lastError: DbErrorLike | null = null;
+  let sawRlsError = false;
   for (const payload of tiers) {
     const result = await tryUpsertPayload(userId, payload);
     if (result.ok) {
       return result;
     }
     lastError = result.error;
+    if (isRlsPolicyError(result.error)) {
+      sawRlsError = true;
+      break;
+    }
     if (!isUndefinedColumnError(result.error)) {
       reportError(result.error, { source: 'upsertDefaultAppProfile', userId });
       return result;
     }
+  }
+
+  if (sawRlsError || (lastError && isRlsPolicyError(lastError))) {
+    const rpc = await upsertDefaultAppProfileViaRpc(userId);
+    if (rpc.ok) {
+      return rpc;
+    }
+    return rpc;
   }
 
   if (lastError) {
