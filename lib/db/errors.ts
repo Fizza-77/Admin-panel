@@ -31,11 +31,35 @@ export function isPostgrestError(value: unknown): value is PostgrestError {
   );
 }
 
+/** Postgres undefined_column */
+export function isUndefinedColumnError(error: DbErrorLike | null | undefined): boolean {
+  return error?.code === '42703';
+}
+
+/** Postgres insufficient_privilege / RLS violation */
+export function isRlsPolicyError(error: DbErrorLike | null | undefined): boolean {
+  if (!error) {
+    return false;
+  }
+  if (error.code === '42501') {
+    return true;
+  }
+  return /row-level security policy/i.test(error.message ?? '');
+}
+
+export function rlsConfigurationHint(): string {
+  return (
+    'Database rejected the request (RLS policy). On production, set SUPABASE_SERVICE_ROLE_KEY to the ' +
+    'service_role secret from Supabase → Project Settings → API (not the anon/public key). ' +
+    'Then run: pm2 restart admin-panel --update-env'
+  );
+}
+
 export function isMissingColumnError(error: DbErrorLike | null | undefined, columnName: string): boolean {
   if (!error) {
     return false;
   }
-  if (error.code === '42703') {
+  if (isUndefinedColumnError(error)) {
     return true;
   }
   const pattern = new RegExp(columnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');

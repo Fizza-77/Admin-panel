@@ -70,12 +70,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     reportError(new Error(profileEnsure.error ?? 'Profile bootstrap failed'), {
       source: 'login.ensureAppProfileRow',
       userId: data.user.id,
+      email: normalizedEmail,
     });
-    await supabaseAdmin.auth.admin.signOut(data.session.access_token);
-    return res.status(500).json({
-      message: 'Signed in but could not initialize your access profile. Contact an administrator.',
-      detail: profileEnsure.error,
-    });
+    // Allow sign-in — profile issues surface on the next page via getAppProfile /profile-error.
+    // Blocking login here locked out users when migrations were partially applied.
   }
 
   setSessionCookiesOnResponse(res, data.session.access_token, data.session.refresh_token);

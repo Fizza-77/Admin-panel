@@ -26,6 +26,10 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
   };
 });
 
+function isRlsMessage(message: string): boolean {
+  return /row-level security|42501/i.test(message);
+}
+
 export default function ProfileErrorPage({
   permissions,
   message,
@@ -33,6 +37,8 @@ export default function ProfileErrorPage({
   permissions: AppPermissions;
   message: string;
 }) {
+  const rlsIssue = isRlsMessage(message);
+
   return (
     <AdminLayout permissions={permissions}>
       <Head>
@@ -44,13 +50,41 @@ export default function ProfileErrorPage({
           message="You are signed in, but the admin panel could not read or create your permission profile in the database. This is not the same as having no permissions."
           detail={message}
         />
+        {rlsIssue && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950 space-y-2">
+            <p className="font-semibold">Server configuration issue (not your account)</p>
+            <p>
+              Production is almost certainly using the <strong>anon/public</strong> Supabase key as{' '}
+              <code className="rounded bg-amber-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code>. Localhost works because{' '}
+              <code className="rounded bg-amber-100 px-1">.env.local</code> has the correct service role secret.
+            </p>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>
+                Supabase Dashboard → Project Settings → API → copy the <strong>service_role</strong> secret (not anon).
+              </li>
+              <li>
+                Set <code className="rounded bg-amber-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code> in PM2 / server env.
+              </li>
+              <li>
+                Run <code className="rounded bg-amber-100 px-1">pm2 restart admin-panel --update-env</code>
+              </li>
+              <li>
+                Open <code className="rounded bg-amber-100 px-1">/api/health</code> —{' '}
+                <code className="rounded bg-amber-100 px-1">service_role_key.valid</code> must be{' '}
+                <code className="rounded bg-amber-100 px-1">true</code>.
+              </li>
+            </ol>
+          </div>
+        )}
         <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-700 space-y-3">
           <p className="font-medium text-slate-900">What to try</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Confirm production migrations have been applied (especially `app_profiles` and `can_administer_tasks`).</li>
+            {!rlsIssue && (
+              <li>Confirm production migrations have been applied (especially `app_profiles` and `can_administer_tasks`).</li>
+            )}
             <li>Run the SQL diagnostics in `supabase/diagnostics/production_checks.sql`.</li>
-            <li>Check `/api/health` and `/api/debug/permissions` (admin only).</li>
-            <li>Sign out and sign in again after the database is fixed.</li>
+            <li>Check `/api/health` — look at `service_role_key` and `app_profiles_write_probe`.</li>
+            <li>Sign out and sign in again after the server environment is fixed.</li>
           </ul>
         </div>
         <div className="flex flex-wrap gap-3">
