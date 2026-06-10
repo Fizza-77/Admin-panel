@@ -1,15 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { env } from '../env/server';
-import { assertValidServiceRoleKey, inspectServiceRoleKey } from './validateServiceRoleKey';
+import { inspectServiceRoleKey } from './validateServiceRoleKey';
 
 const keyStatus = inspectServiceRoleKey(env.SUPABASE_SERVICE_ROLE_KEY, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 if (!keyStatus.valid) {
   const msg = `[Supabase] ${keyStatus.message}`;
   console.error(msg);
-  if (process.env.NODE_ENV === 'production') {
-    assertValidServiceRoleKey(env.SUPABASE_SERVICE_ROLE_KEY, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  }
+  // Do not throw — a crash causes nginx 502. /api/health reports the misconfiguration.
 }
 
 export const supabaseServiceRoleKeyStatus = keyStatus;

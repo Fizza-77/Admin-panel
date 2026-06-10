@@ -4,10 +4,11 @@ import { resolve } from 'path';
 const projectRoot = process.cwd();
 
 // Load env files. In production, .env on disk wins over stale PM2-injected values.
-config({ path: resolve(projectRoot, '.env.local') });
-config({ path: resolve(projectRoot, '.env') });
+const dotenvOpts = { quiet: true as const };
+config({ path: resolve(projectRoot, '.env.local'), ...dotenvOpts });
+config({ path: resolve(projectRoot, '.env'), ...dotenvOpts });
 if (process.env.NODE_ENV === 'production') {
-  config({ path: resolve(projectRoot, '.env'), override: true });
+  config({ path: resolve(projectRoot, '.env'), override: true, ...dotenvOpts });
 }
 
 const requiredServerEnv = [
