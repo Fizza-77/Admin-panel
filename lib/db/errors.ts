@@ -36,6 +36,17 @@ export function isUndefinedColumnError(error: DbErrorLike | null | undefined): b
   return error?.code === '42703';
 }
 
+/** PostgREST / Postgres — RPC not deployed yet */
+export function isRpcNotFoundError(error: DbErrorLike | null | undefined): boolean {
+  if (!error) {
+    return false;
+  }
+  if (error.code === 'PGRST202' || error.code === '42883') {
+    return true;
+  }
+  return /could not find the function|function.*does not exist/i.test(error.message ?? '');
+}
+
 /** Postgres insufficient_privilege / RLS violation */
 export function isRlsPolicyError(error: DbErrorLike | null | undefined): boolean {
   if (!error) {

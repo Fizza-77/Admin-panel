@@ -1,24 +1,24 @@
 import Head from 'next/head';
 import type { GetServerSidePropsContext } from 'next';
-import { getAuthUserFromGsspContext, requireAuthentication } from '@/lib/auth';
+import { requireAuthentication } from '@/lib/auth';
+import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import SitesList from '@/components/SitesList';
-import { getAppProfile } from '@/lib/permissions/getAppProfile';
 import { listSites } from '@/lib/sites';
 import type { Site } from '@/types/site';
 import type { AppPermissions } from '@/lib/permissions/types';
 
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
-  const user = await getAuthUserFromGsspContext(context);
-  if (!user) {
+  const ctx = await resolveAdminUserContextFromGssp(context);
+  if (!ctx) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const { permissions } = await getAppProfile(user.id, user.email);
+  const { permissions, profileLoadError } = ctx;
 
-  if (permissions.profileLoadError && !permissions.isPrimaryAdmin) {
+  if (profileLoadError && !permissions.isPrimaryAdmin) {
     return {
       redirect: {
-        destination: `/profile-error?message=${encodeURIComponent(permissions.profileLoadError)}`,
+        destination: `/profile-error?message=${encodeURIComponent(profileLoadError)}`,
         permanent: false,
       },
     };

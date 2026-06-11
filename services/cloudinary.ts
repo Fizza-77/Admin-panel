@@ -23,6 +23,15 @@ export const uploadImageToServer = async (file: File): Promise<string> => {
     return uploadedUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
+    if (axios.isAxiosError(error)) {
+      const serverMessage = error.response?.data?.error;
+      if (typeof serverMessage === 'string' && serverMessage.trim()) {
+        throw new Error(serverMessage);
+      }
+      if (error.response?.status === 503) {
+        throw new Error('Permission system unavailable. Try signing out and back in, or contact an admin.');
+      }
+    }
     throw new Error('Failed to upload image');
   }
 };

@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAuthUserFromApiRequest } from '@/lib/auth';
-import { getAppProfile } from './getAppProfile';
+import { resolveAdminUserContextFromApi } from '@/lib/auth/resolveUserContext';
 import type { AppPermissions } from './types';
 
 export type ApiPermissionResult =
@@ -8,25 +7,25 @@ export type ApiPermissionResult =
   | { ok: false; status: number; message: string };
 
 /**
- * After a valid session, checks feature flags for API routes.
+ * Validates session + loads permissions in one step, then checks feature flags.
  */
 export async function requireApiPermission(
   req: NextApiRequest,
   res: NextApiResponse | undefined,
   needs: { blogs?: boolean; tasks?: boolean; users?: boolean },
 ): Promise<ApiPermissionResult> {
-  const user = await getAuthUserFromApiRequest(req, res);
-  if (!user) {
+  const ctx = await resolveAdminUserContextFromApi(req, res);
+  if (!ctx) {
     return { ok: false, status: 401, message: 'Unauthorized' };
   }
 
-  const { permissions } = await getAppProfile(user.id, user.email);
+  const { permissions, userId, profileLoadError } = ctx;
 
-  if (permissions.profileLoadError) {
+  if (profileLoadError && !permissions.isPrimaryAdmin) {
     return {
       ok: false,
       status: 503,
-      message: `Permission system unavailable: ${permissions.profileLoadError}`,
+      message: `Permission system unavailable: ${profileLoadError}`,
     };
   }
 
@@ -40,5 +39,5 @@ export async function requireApiPermission(
     return { ok: false, status: 403, message: 'You do not have access to user management.' };
   }
 
-  return { ok: true, userId: user.id, permissions };
+  return { ok: true, userId, permissions };
 }

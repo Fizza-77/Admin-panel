@@ -1,20 +1,19 @@
 import Head from 'next/head';
 import { useState } from 'react';
 import type { GetServerSidePropsContext } from 'next';
-import { getAuthUserFromGsspContext, requireAuthentication } from '@/lib/auth';
+import { requireAuthentication } from '@/lib/auth';
+import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
-import { getAppProfile } from '@/lib/permissions/getAppProfile';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { Loader2 } from 'lucide-react';
 import { reportError } from '@/lib/monitoring';
 
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
-  const user = await getAuthUserFromGsspContext(context);
-  if (!user) {
+  const ctx = await resolveAdminUserContextFromGssp(context);
+  if (!ctx) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const { permissions } = await getAppProfile(user.id, user.email);
-  return { props: { permissions } };
+  return { props: { permissions: ctx.permissions } };
 });
 
 export default function SettingsPage({ permissions }: { permissions: AppPermissions }) {

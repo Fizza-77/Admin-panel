@@ -1,5 +1,11 @@
 import { supabase } from '@/lib/supabase/server';
-import { isRlsPolicyError, isUndefinedColumnError, rlsConfigurationHint, type DbErrorLike } from '@/lib/db/errors';
+import {
+  isRlsPolicyError,
+  isRpcNotFoundError,
+  isUndefinedColumnError,
+  rlsConfigurationHint,
+  type DbErrorLike,
+} from '@/lib/db/errors';
 import { supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { reportError } from '@/lib/monitoring';
 
@@ -11,14 +17,8 @@ export type AppProfileRow = {
   display_name: string | null;
 };
 
-const FULL_COLUMNS =
+const PROFILE_COLUMNS =
   'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, display_name';
-
-const LEGACY_COLUMNS = 'can_manage_blogs, can_manage_tasks, can_manage_users, display_name';
-
-const MINIMAL_COLUMNS = 'can_manage_blogs, can_manage_tasks, can_manage_users';
-
-const SELECT_COLUMN_TIERS = [FULL_COLUMNS, LEGACY_COLUMNS, MINIMAL_COLUMNS] as const;
 
 export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow {
   const can_manage_users =
@@ -42,114 +42,7 @@ export type ProfileFetchResult = {
   error: DbErrorLike | null;
 };
 
-async function selectProfileByColumns(userId: string, columns: string) {
-  return supabase.from('app_profiles').select(columns).eq('user_id', userId).maybeSingle();
-}
-
-/** SECURITY DEFINER fallback — bypasses RLS when service_role JWT is correct. */
-async function fetchAppProfileRowViaRpc(userId: string): Promise<ProfileFetchResult> {
-  const { data, error } = await supabase.rpc('svc_get_app_profile', { p_user_id: userId });
-  if (error) {
-    reportError(error, { source: 'fetchAppProfileRowViaRpc', userId });
-    return { row: null, error: enrichDbError(error) };
-  }
-  if (!data || typeof data !== 'object') {
-    return { row: null, error: null };
-  }
-  return { row: normalizeProfileRow(data as Record<string, unknown>), error: null };
-}
-
-async function upsertDefaultAppProfileViaRpc(userId: string): Promise<UpsertProfileResult> {
-  const { error } = await supabase.rpc('svc_upsert_default_app_profile', { p_user_id: userId });
-  if (!error) {
-    return { ok: true };
-  }
-  reportError(error, { source: 'upsertDefaultAppProfileViaRpc', userId });
-  return { ok: false, error: enrichDbError(error) };
-}
-
-export async function fetchAppProfileRow(userId: string): Promise<ProfileFetchResult> {
-  let lastError: DbErrorLike | null = null;
-  let sawRlsError = false;
-
-  for (const columns of SELECT_COLUMN_TIERS) {
-    const { data, error } = await selectProfileByColumns(userId, columns);
-    if (!error) {
-      const raw = data as unknown as Record<string, unknown> | null;
-      if (raw) {
-        return { row: normalizeProfileRow(raw), error: null };
-      }
-      continue;
-    }
-    lastError = error;
-    if (isRlsPolicyError(error)) {
-      sawRlsError = true;
-      break;
-    }
-    if (isUndefinedColumnError(error)) {
-      continue;
-    }
-    reportError(error, { source: 'fetchAppProfileRow', userId, columns });
-    return { row: null, error: enrichDbError(error) };
-  }
-
-  if (sawRlsError || lastError) {
-    const rpc = await fetchAppProfileRowViaRpc(userId);
-    if (rpc.row || !rpc.error) {
-      return rpc;
-    }
-    if (lastError) {
-      reportError(lastError, { source: 'fetchAppProfileRow.exhausted', userId });
-    }
-    return {
-      row: null,
-      error: rpc.error ?? (lastError ? enrichDbError(lastError) : { message: 'Failed to load profile' }),
-    };
-  }
-
-  return { row: null, error: null };
-}
-
-export type ProfilesBatchResult = {
-  byUserId: Map<string, AppProfileRow>;
-  error: DbErrorLike | null;
-};
-
-export async function fetchAppProfileRowsByUserIds(userIds: string[]): Promise<ProfilesBatchResult> {
-  if (userIds.length === 0) {
-    return { byUserId: new Map(), error: null };
-  }
-
-  let lastError: DbErrorLike | null = null;
-
-  for (const columns of SELECT_COLUMN_TIERS) {
-    const { data, error } = await supabase
-      .from('app_profiles')
-      .select(`user_id, ${columns}`)
-      .in('user_id', userIds);
-
-    if (!error) {
-      const byUserId = new Map<string, AppProfileRow>();
-      for (const p of (data ?? []) as unknown as Array<Record<string, unknown> & { user_id: string }>) {
-        const { user_id, ...rest } = p;
-        byUserId.set(user_id, normalizeProfileRow(rest));
-      }
-      return { byUserId, error: null };
-    }
-
-    lastError = error;
-    if (isUndefinedColumnError(error)) {
-      continue;
-    }
-    reportError(error, { source: 'fetchAppProfileRowsByUserIds', columns });
-    return { byUserId: new Map(), error };
-  }
-
-  if (lastError) {
-    reportError(lastError, { source: 'fetchAppProfileRowsByUserIds.exhausted' });
-  }
-  return { byUserId: new Map(), error: lastError };
-}
+export type UpsertProfileResult = { ok: true } | { ok: false; error: DbErrorLike };
 
 export const DEFAULT_APP_PROFILE_FLAGS = {
   can_manage_blogs: false,
@@ -165,10 +58,6 @@ export const FULL_ACCESS_PROFILE_FLAGS = {
   can_manage_users: true,
 } as const;
 
-export type UpsertProfileResult = { ok: true } | { ok: false; error: DbErrorLike };
-
-type UpsertPayload = Record<string, unknown>;
-
 function enrichDbError(error: DbErrorLike): DbErrorLike {
   if (isRlsPolicyError(error)) {
     const keyHint = supabaseServiceRoleKeyStatus.valid
@@ -182,7 +71,82 @@ function enrichDbError(error: DbErrorLike): DbErrorLike {
   return error;
 }
 
-async function tryUpsertPayload(userId: string, payload: UpsertPayload): Promise<UpsertProfileResult> {
+/** SECURITY DEFINER — bypasses RLS; preferred path for all profile reads. */
+async function fetchAppProfileRowViaRpc(userId: string): Promise<ProfileFetchResult> {
+  const { data, error } = await supabase.rpc('svc_get_app_profile', { p_user_id: userId });
+  if (error) {
+    return { row: null, error: enrichDbError(error) };
+  }
+  if (!data || typeof data !== 'object') {
+    return { row: null, error: null };
+  }
+  return { row: normalizeProfileRow(data as Record<string, unknown>), error: null };
+}
+
+/** Direct table read — only when RPC migrations are not applied yet. */
+async function fetchAppProfileRowDirect(userId: string): Promise<ProfileFetchResult> {
+  const { data, error } = await supabase
+    .from('app_profiles')
+    .select(PROFILE_COLUMNS)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    if (isUndefinedColumnError(error)) {
+      const { data: legacy, error: legacyErr } = await supabase
+        .from('app_profiles')
+        .select('can_manage_blogs, can_manage_tasks, can_manage_users')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (legacyErr) {
+        reportError(legacyErr, { source: 'fetchAppProfileRowDirect', userId });
+        return { row: null, error: enrichDbError(legacyErr) };
+      }
+      if (!legacy) {
+        return { row: null, error: null };
+      }
+      return { row: normalizeProfileRow(legacy as Record<string, unknown>), error: null };
+    }
+    reportError(error, { source: 'fetchAppProfileRowDirect', userId });
+    return { row: null, error: enrichDbError(error) };
+  }
+
+  if (!data) {
+    return { row: null, error: null };
+  }
+  return { row: normalizeProfileRow(data as Record<string, unknown>), error: null };
+}
+
+export async function fetchAppProfileRow(userId: string): Promise<ProfileFetchResult> {
+  const rpc = await fetchAppProfileRowViaRpc(userId);
+  if (!rpc.error) {
+    return rpc;
+  }
+  if (!isRpcNotFoundError(rpc.error)) {
+    reportError(rpc.error, { source: 'fetchAppProfileRowViaRpc', userId });
+    return rpc;
+  }
+
+  return fetchAppProfileRowDirect(userId);
+}
+
+async function upsertDefaultAppProfileViaRpc(userId: string): Promise<UpsertProfileResult> {
+  const { error } = await supabase.rpc('svc_upsert_default_app_profile', { p_user_id: userId });
+  if (!error) {
+    return { ok: true };
+  }
+  return { ok: false, error: enrichDbError(error) };
+}
+
+async function upsertFullAccessAppProfileViaRpc(userId: string): Promise<UpsertProfileResult> {
+  const { error } = await supabase.rpc('svc_upsert_full_access_app_profile', { p_user_id: userId });
+  if (!error) {
+    return { ok: true };
+  }
+  return { ok: false, error: enrichDbError(error) };
+}
+
+async function tryUpsertPayload(userId: string, payload: Record<string, unknown>): Promise<UpsertProfileResult> {
   const { error } = await supabase.from('app_profiles').upsert(payload, { onConflict: 'user_id' });
   if (!error) {
     return { ok: true };
@@ -190,93 +154,118 @@ async function tryUpsertPayload(userId: string, payload: UpsertPayload): Promise
   return { ok: false, error: enrichDbError(error) };
 }
 
-export async function upsertDefaultAppProfile(userId: string): Promise<UpsertProfileResult> {
+async function upsertDefaultAppProfileDirect(userId: string): Promise<UpsertProfileResult> {
   const updated_at = new Date().toISOString();
-  const tiers: UpsertPayload[] = [
+  const payloads = [
     { user_id: userId, ...DEFAULT_APP_PROFILE_FLAGS, updated_at },
     {
       user_id: userId,
-      can_manage_blogs: DEFAULT_APP_PROFILE_FLAGS.can_manage_blogs,
-      can_manage_tasks: DEFAULT_APP_PROFILE_FLAGS.can_manage_tasks,
-      can_manage_users: DEFAULT_APP_PROFILE_FLAGS.can_manage_users,
+      can_manage_blogs: false,
+      can_manage_tasks: true,
+      can_manage_users: false,
       updated_at,
-    },
-    {
-      user_id: userId,
-      can_manage_blogs: DEFAULT_APP_PROFILE_FLAGS.can_manage_blogs,
-      can_manage_tasks: DEFAULT_APP_PROFILE_FLAGS.can_manage_tasks,
-      can_manage_users: DEFAULT_APP_PROFILE_FLAGS.can_manage_users,
     },
   ];
 
   let lastError: DbErrorLike | null = null;
-  let sawRlsError = false;
-  for (const payload of tiers) {
+  for (const payload of payloads) {
     const result = await tryUpsertPayload(userId, payload);
     if (result.ok) {
       return result;
     }
     lastError = result.error;
-    if (isRlsPolicyError(result.error)) {
-      sawRlsError = true;
-      break;
-    }
     if (!isUndefinedColumnError(result.error)) {
-      reportError(result.error, { source: 'upsertDefaultAppProfile', userId });
+      reportError(result.error, { source: 'upsertDefaultAppProfileDirect', userId });
       return result;
     }
   }
 
-  if (sawRlsError || (lastError && isRlsPolicyError(lastError))) {
-    const rpc = await upsertDefaultAppProfileViaRpc(userId);
-    if (rpc.ok) {
-      return rpc;
-    }
-    return rpc;
-  }
-
   if (lastError) {
-    reportError(lastError, { source: 'upsertDefaultAppProfile.exhausted', userId });
+    reportError(lastError, { source: 'upsertDefaultAppProfileDirect.exhausted', userId });
   }
   return { ok: false, error: lastError ?? { message: 'Failed to upsert default profile' } };
 }
 
-export async function upsertFullAccessAppProfile(userId: string): Promise<UpsertProfileResult> {
+async function upsertFullAccessAppProfileDirect(userId: string): Promise<UpsertProfileResult> {
   const updated_at = new Date().toISOString();
-  const tiers: UpsertPayload[] = [
+  const payloads = [
     { user_id: userId, ...FULL_ACCESS_PROFILE_FLAGS, updated_at },
-    {
-      user_id: userId,
-      can_manage_blogs: true,
-      can_manage_tasks: true,
-      can_manage_users: true,
-      updated_at,
-    },
-    {
-      user_id: userId,
-      can_manage_blogs: true,
-      can_manage_tasks: true,
-      can_manage_users: true,
-    },
+    { user_id: userId, can_manage_blogs: true, can_manage_tasks: true, can_manage_users: true, updated_at },
   ];
 
   let lastError: DbErrorLike | null = null;
-  for (const payload of tiers) {
+  for (const payload of payloads) {
     const result = await tryUpsertPayload(userId, payload);
     if (result.ok) {
       return result;
     }
     lastError = result.error;
     if (!isUndefinedColumnError(result.error)) {
-      reportError(result.error, { source: 'upsertFullAccessAppProfile', userId });
+      reportError(result.error, { source: 'upsertFullAccessAppProfileDirect', userId });
       return result;
     }
   }
 
   if (lastError) {
-    reportError(lastError, { source: 'upsertFullAccessAppProfile.exhausted', userId });
+    reportError(lastError, { source: 'upsertFullAccessAppProfileDirect.exhausted', userId });
   }
   return { ok: false, error: lastError ?? { message: 'Failed to upsert full-access profile' } };
+}
+
+export async function upsertDefaultAppProfile(userId: string): Promise<UpsertProfileResult> {
+  const rpc = await upsertDefaultAppProfileViaRpc(userId);
+  if (rpc.ok) {
+    return rpc;
+  }
+  if (rpc.error && !isRpcNotFoundError(rpc.error)) {
+    reportError(rpc.error, { source: 'upsertDefaultAppProfileViaRpc', userId });
+    return rpc;
+  }
+
+  return upsertDefaultAppProfileDirect(userId);
+}
+
+export async function upsertFullAccessAppProfile(userId: string): Promise<UpsertProfileResult> {
+  const rpc = await upsertFullAccessAppProfileViaRpc(userId);
+  if (rpc.ok) {
+    return rpc;
+  }
+  if (rpc.error && !isRpcNotFoundError(rpc.error)) {
+    reportError(rpc.error, { source: 'upsertFullAccessAppProfileViaRpc', userId });
+    return rpc;
+  }
+
+  return upsertFullAccessAppProfileDirect(userId);
+}
+
+export type ProfilesBatchResult = {
+  byUserId: Map<string, AppProfileRow>;
+  error: DbErrorLike | null;
+};
+
+export async function fetchAppProfileRowsByUserIds(userIds: string[]): Promise<ProfilesBatchResult> {
+  if (userIds.length === 0) {
+    return { byUserId: new Map(), error: null };
+  }
+
+  const byUserId = new Map<string, AppProfileRow>();
+  let lastError: DbErrorLike | null = null;
+
+  for (const userId of userIds) {
+    const { row, error } = await fetchAppProfileRow(userId);
+    if (row) {
+      byUserId.set(userId, row);
+    }
+    if (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError && byUserId.size === 0) {
+    return { byUserId, error: lastError };
+  }
+
+  return { byUserId, error: lastError };
 }
 
 export async function ensureAppProfileRowsForUserIds(userIds: string[]): Promise<{

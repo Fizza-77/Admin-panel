@@ -5,13 +5,10 @@ import { useRouter } from 'next/router';
 import { ArrowLeft, PanelLeft, Search, Settings } from 'lucide-react';
 import TaskNotifications from './TaskNotifications';
 import type { AppPermissions } from '@/lib/permissions/types';
+import { useSession } from './SessionContext';
 import { useSidebar } from './SidebarContext';
 import { breadcrumbsFromPath } from '@/lib/ui/breadcrumbs';
 import { cn } from '@/lib/ui/cn';
-
-type HeaderProps = {
-  permissions?: AppPermissions;
-};
 
 function displayLabel(permissions?: AppPermissions) {
   const n = permissions?.displayName?.trim();
@@ -41,9 +38,10 @@ function initials(permissions?: AppPermissions) {
   return 'U';
 }
 
-export default function Header({ permissions }: HeaderProps) {
+export default function Header() {
   const router = useRouter();
   const { collapsed, expand } = useSidebar();
+  const { permissions } = useSession();
   const canTasks = permissions?.canManageTasks ?? false;
   const onRoot = router.pathname === '/';
   const crumbs = breadcrumbsFromPath(router.pathname);

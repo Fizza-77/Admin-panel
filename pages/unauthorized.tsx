@@ -1,18 +1,17 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { getAuthUserFromGsspContext, requireAuthentication } from '@/lib/auth';
+import { requireAuthentication } from '@/lib/auth';
+import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
-import { getAppProfile } from '@/lib/permissions/getAppProfile';
 import type { AppPermissions } from '@/lib/permissions/types';
 import type { GetServerSidePropsContext } from 'next';
 
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
-  const user = await getAuthUserFromGsspContext(context);
-  if (!user) {
+  const ctx = await resolveAdminUserContextFromGssp(context);
+  if (!ctx) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const { permissions } = await getAppProfile(user.id, user.email);
-  return { props: { permissions } };
+  return { props: { permissions: ctx.permissions } };
 });
 
 export default function UnauthorizedPage({ permissions }: { permissions: AppPermissions }) {

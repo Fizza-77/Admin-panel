@@ -1,26 +1,26 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { getAuthUserFromGsspContext, requireAuthentication } from '@/lib/auth';
+import { requireAuthentication } from '@/lib/auth';
+import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import DataLoadError from '@/components/ui/DataLoadError';
 import type { AppPermissions } from '@/lib/permissions/types';
 import type { GetServerSidePropsContext } from 'next';
-import { getAppProfile } from '@/lib/permissions/getAppProfile';
 
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
-  const user = await getAuthUserFromGsspContext(context);
-  if (!user) {
+  const ctx = await resolveAdminUserContextFromGssp(context);
+  if (!ctx) {
     return { redirect: { destination: '/login', permanent: false } };
   }
 
   const q = context.query.message;
   const fromQuery = typeof q === 'string' ? decodeURIComponent(q) : null;
-  const { permissions } = await getAppProfile(user.id, user.email);
-  const message = fromQuery || permissions.profileLoadError || 'Could not load your access profile from the database.';
+  const message =
+    fromQuery || ctx.profileLoadError || 'Could not load your access profile from the database.';
 
   return {
     props: {
-      permissions,
+      permissions: ctx.permissions,
       message,
     },
   };

@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { resolveAdminSession } from '@/lib/auth/resolveSession';
 import { clearSessionCookieHeaders } from '@/lib/auth/sessionCookies';
 import { reportError } from '@/lib/monitoring';
-import { getAppProfile } from '@/lib/permissions/getAppProfile';
+import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { redirectWhenBlogDenied, redirectWhenTaskDenied } from '@/lib/permissions/redirects';
 
@@ -155,8 +155,8 @@ export function requirePermission(
   gssp: GsspWithPermissions,
 ) {
   return async (context: GetServerSidePropsContext) => {
-    const user = await getAuthUserFromGsspContext(context);
-    if (!user) {
+    const ctx = await resolveAdminUserContextFromGssp(context);
+    if (!ctx) {
       return {
         redirect: {
           destination: '/login',
@@ -165,10 +165,10 @@ export function requirePermission(
       };
     }
 
-    const { permissions } = await getAppProfile(user.id, user.email);
+    const { permissions, userId, profileLoadError } = ctx;
 
-    if (permissions.profileLoadError && !permissions.isPrimaryAdmin) {
-      const message = encodeURIComponent(permissions.profileLoadError);
+    if (profileLoadError && !permissions.isPrimaryAdmin) {
+      const message = encodeURIComponent(profileLoadError);
       return {
         redirect: {
           destination: `/profile-error?message=${message}`,
@@ -202,7 +202,7 @@ export function requirePermission(
       };
     }
 
-    const result = await gssp(context, { userId: user.id, permissions });
+    const result = await gssp(context, { userId, permissions });
     if (result && typeof result === 'object' && 'props' in result && result.props && typeof result.props === 'object') {
       return {
         ...result,

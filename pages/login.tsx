@@ -15,6 +15,7 @@ import {
   Mail,
   Shield,
 } from 'lucide-react';
+import { saveAdminClientSession } from '@/lib/client/adminSession';
 import { reportError } from '@/lib/monitoring';
 
 const loginSchema = z.object({
@@ -49,7 +50,19 @@ export default function Login() {
     setError('');
 
     try {
-      await axios.post('/api/login', data, { withCredentials: true });
+      const { data: body } = await axios.post<{
+        success: boolean;
+        session?: { userId: string; email: string | null; permissions: import('@/lib/permissions/types').AppPermissions };
+      }>('/api/login', data, { withCredentials: true });
+
+      if (body.session?.userId && body.session.permissions) {
+        saveAdminClientSession({
+          userId: body.session.userId,
+          email: body.session.email,
+          permissions: body.session.permissions,
+        });
+      }
+
       await router.push('/');
     } catch (err: unknown) {
       const message =

@@ -26,7 +26,8 @@ export default function ImageUploader({ value, onChange, label = 'Cover Image' }
       const url = await uploadImageToServer(file);
       onChange(url);
     } catch (err) {
-      setError('Failed to upload image. Please try again.');
+      const message = err instanceof Error && err.message ? err.message : 'Failed to upload image. Please try again.';
+      setError(message);
     } finally {
       setIsUploading(false);
     }

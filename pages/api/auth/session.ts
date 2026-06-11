@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAuthUserFromApiRequest } from '@/lib/auth';
+import { resolveAdminUserContextFromApi } from '@/lib/auth/resolveUserContext';
 
 /**
- * Keeps the admin session alive: validates access token or refreshes using the refresh cookie,
- * then re-issues HttpOnly cookies (sliding expiration).
+ * Keeps the admin session alive and returns user id + permissions (UI cache).
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -11,13 +10,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const user = await getAuthUserFromApiRequest(req, res);
-  if (!user) {
+  const ctx = await resolveAdminUserContextFromApi(req, res);
+  if (!ctx) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
   return res.status(200).json({
     ok: true,
-    email: user.email ?? null,
+    userId: ctx.userId,
+    email: ctx.email,
+    permissions: ctx.permissions,
   });
 }

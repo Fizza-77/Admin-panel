@@ -15,20 +15,19 @@ import {
 import axios from 'axios';
 import { setupUnlockHref } from '@/lib/setup';
 import { reportError } from '@/lib/monitoring';
-import type { AppPermissions } from '@/lib/permissions/types';
+import { clearAdminClientSession } from '@/lib/client/adminSession';
+import { useSession } from './SessionContext';
 import { useSidebar } from './SidebarContext';
 import { cn } from '@/lib/ui/cn';
 
-type SidebarProps = {
-  permissions?: AppPermissions;
-};
-
-export default function Sidebar({ permissions }: SidebarProps) {
+export default function Sidebar() {
   const router = useRouter();
   const { collapsed, collapse, expand } = useSidebar();
+  const { permissions } = useSession();
 
   const handleLogout = async () => {
     try {
+      clearAdminClientSession();
       await axios.post('/api/logout');
       await router.push('/login');
     } catch (e) {

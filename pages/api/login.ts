@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { supabase as supabaseAdmin } from '@/lib/supabase/server';
 import { setSessionCookiesOnResponse } from '@/lib/auth/sessionCookies';
-import { ensureAppProfileRow, isBootstrapOwnerEmail } from '@/lib/permissions/getAppProfile';
+import { ensureAppProfileRow, getAppProfile, isBootstrapOwnerEmail } from '@/lib/permissions/getAppProfile';
 import { reportError } from '@/lib/monitoring';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -78,5 +78,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   setSessionCookiesOnResponse(res, data.session.access_token, data.session.refresh_token);
 
-  return res.status(200).json({ success: true });
+  const { permissions, loadError } = await getAppProfile(data.user.id, normalizedEmail);
+  const sessionPermissions = loadError
+    ? { ...permissions, profileLoadError: loadError }
+    : permissions;
+
+  return res.status(200).json({
+    success: true,
+    session: {
+      userId: data.user.id,
+      email: normalizedEmail,
+      permissions: sessionPermissions,
+    },
+  });
 }
