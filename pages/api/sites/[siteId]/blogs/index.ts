@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
 import { supabase } from '@/lib/supabase/server';
+import { apiErrorFromDbError } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -60,7 +61,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) {
         console.error('Blog insert error:', error);
-        return res.status(500).json({ message: error.message || 'Failed to create blog' });
+        const { status, message } = apiErrorFromDbError(error, 'blog create');
+        return res.status(status).json({ message });
       }
 
       return res.status(201).json({ success: true });

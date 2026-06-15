@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
 import { supabase } from '@/lib/supabase/server';
+import { apiErrorFromDbError } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 type SuccessResponse = {
@@ -63,7 +64,8 @@ export default async function handler(
 
       if (error) {
         console.error('Blog update error:', error);
-        return res.status(500).json({ message: error.message || 'Failed to update blog' });
+        const { status, message } = apiErrorFromDbError(error, 'blog update');
+        return res.status(status).json({ message });
       }
 
       if (!data || data.length === 0) {

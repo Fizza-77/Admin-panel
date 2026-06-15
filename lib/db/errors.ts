@@ -60,10 +60,25 @@ export function isRlsPolicyError(error: DbErrorLike | null | undefined): boolean
 
 export function rlsConfigurationHint(): string {
   return (
-    'Database rejected the request (RLS policy). On production, set SUPABASE_SERVICE_ROLE_KEY to the ' +
-    'service_role secret from Supabase → Project Settings → API (not the anon/public key). ' +
-    'Then run: pm2 restart admin-panel --update-env'
+    'Set SUPABASE_SERVICE_ROLE_KEY to the service_role secret from Supabase → Project Settings → API ' +
+    '(not the anon/public key), then: pm2 delete admin-panel && pm2 start ecosystem.config.cjs && pm2 save'
   );
+}
+
+export function apiErrorFromDbError(
+  error: DbErrorLike,
+  context: string,
+): { status: number; message: string } {
+  if (isRlsPolicyError(error)) {
+    return {
+      status: 503,
+      message:
+        `${formatDbError(error)} (${context}). ` +
+        'The admin server is not using the Supabase service_role key, so Postgres RLS blocks writes. ' +
+        rlsConfigurationHint(),
+    };
+  }
+  return { status: 500, message: formatDbError(error) };
 }
 
 export function isMissingColumnError(error: DbErrorLike | null | undefined, columnName: string): boolean {
