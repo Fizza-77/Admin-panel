@@ -1,6 +1,14 @@
 import type { PostgrestError } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase/server';
-import { formatDbError, isMissingColumnError, type DataLoadState, dataLoadFailure, dataLoadSuccess } from '@/lib/db/errors';
+import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
+import {
+  formatDbError,
+  isMissingColumnError,
+  isRlsPolicyError,
+  rlsConfigurationHint,
+  type DataLoadState,
+  dataLoadFailure,
+  dataLoadSuccess,
+} from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 export type BlogListItem = {
@@ -63,6 +71,15 @@ function isSchemaMismatchError(error: PostgrestError | null): boolean {
  * Never returns an empty list when the real failure was a query error.
  */
 export async function listBlogsForSite(siteId: string): Promise<DataLoadState<BlogListItem[]>> {
+  if (!supabaseServiceRoleKeyStatus.valid) {
+    return dataLoadFailure([], {
+      message:
+        `${supabaseServiceRoleKeyStatus.message ?? 'Invalid SUPABASE_SERVICE_ROLE_KEY'}. ` +
+        `Admin blog list requires the service_role key. ${rlsConfigurationHint()}`,
+      code: '42501',
+    });
+  }
+
   const ordered = await supabase
     .from('blogs')
     .select(FULL_SELECT)
@@ -77,7 +94,13 @@ export async function listBlogsForSite(siteId: string): Promise<DataLoadState<Bl
   reportError(ordered.error, { source: 'listBlogsForSite.full', siteId, code: ordered.error.code });
 
   if (!isSchemaMismatchError(ordered.error) && !isMissingCreatedAt(ordered.error)) {
-    return dataLoadFailure([], ordered.error);
+    const err = isRlsPolicyError(ordered.error)
+      ? {
+          ...ordered.error,
+          message: `${formatDbError(ordered.error)}. Admin cannot list blogs when the server uses the anon key. ${rlsConfigurationHint()}`,
+        }
+      : ordered.error;
+    return dataLoadFailure([], err);
   }
 
   const legacy = await supabase

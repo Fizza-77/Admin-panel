@@ -68,3 +68,19 @@ export function clearSessionCookieHeaders(): string[] {
     serialize(ADMIN_REFRESH_COOKIE, '', opts),
   ];
 }
+
+export function clearSessionCookiesOnResponse(res: NextApiResponse): void {
+  res.setHeader('Set-Cookie', clearSessionCookieHeaders());
+}
+
+export function clearSessionCookiesOnContext(context: GetServerSidePropsContext): void {
+  const opts = {
+    httpOnly: true as const,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 0,
+  };
+  nookies.destroy(context, ADMIN_SESSION_COOKIE, opts);
+  nookies.destroy(context, ADMIN_REFRESH_COOKIE, opts);
+}

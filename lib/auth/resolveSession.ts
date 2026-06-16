@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase/server';
 import { reportError } from '@/lib/monitoring';
 import { ADMIN_REFRESH_COOKIE, ADMIN_SESSION_COOKIE } from '@/lib/auth/cookieNames';
 import {
+  clearSessionCookiesOnContext,
+  clearSessionCookiesOnResponse,
   setSessionCookiesOnContext,
   setSessionCookiesOnResponse,
 } from '@/lib/auth/sessionCookies';
@@ -11,6 +13,19 @@ import {
 export type ResolvedAdminUser = { id: string; email?: string };
 
 type CookieBag = Partial<Record<string, string>>;
+
+function isStaleRefreshError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /invalid refresh token|refresh token not found|already used/i.test(message);
+}
+
+function clearSessionCookies(target: NextApiResponse | GetServerSidePropsContext) {
+  if ('setHeader' in target && typeof target.setHeader === 'function') {
+    clearSessionCookiesOnResponse(target as NextApiResponse);
+  } else {
+    clearSessionCookiesOnContext(target as GetServerSidePropsContext);
+  }
+}
 
 async function refreshWithToken(refreshToken: string) {
   return supabase.auth.refreshSession({ refresh_token: refreshToken });
@@ -48,7 +63,12 @@ export async function resolveAdminSession(
 
   const { data, error } = await refreshWithToken(refreshToken!);
   if (error) {
-    reportError(error, { source: 'resolveAdminSession.refresh' });
+    if (!isStaleRefreshError(error)) {
+      reportError(error, { source: 'resolveAdminSession.refresh' });
+    }
+    if (writeTarget) {
+      clearSessionCookies(writeTarget);
+    }
   }
 
   if (error || !data.session?.access_token || !data.session.refresh_token || !data.user) {
