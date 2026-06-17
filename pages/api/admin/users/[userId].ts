@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase/server';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
-import { fetchAppProfileRow } from '@/lib/permissions/appProfileDb';
+import { fetchAppProfileRow, upsertAppProfileRow } from '@/lib/permissions/appProfileDb';
 import { isPrimaryAdminEmail } from '@/lib/permissions/primaryAdmin';
+import { formatDbError } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -101,22 +102,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     can_manage_users = false;
   }
 
-  const { error: upsertError } = await supabase.from('app_profiles').upsert(
-    {
-      user_id: userId,
-      can_manage_blogs,
-      can_manage_tasks,
-      can_administer_tasks,
-      can_manage_users,
-      display_name,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id' },
-  );
+  const profileResult = await upsertAppProfileRow({
+    user_id: userId,
+    can_manage_blogs,
+    can_manage_tasks,
+    can_administer_tasks,
+    can_manage_users,
+    display_name,
+  });
 
-  if (upsertError) {
-    reportError(upsertError, { source: 'api/admin/users PATCH upsert', userId });
-    return res.status(500).json({ message: upsertError.message || 'Failed to save access' });
+  if (!profileResult.ok) {
+    reportError(profileResult.error, { source: 'api/admin/users PATCH upsert', userId });
+    return res.status(500).json({ message: formatDbError(profileResult.error) || 'Failed to save access' });
   }
 
   return res.status(200).json({

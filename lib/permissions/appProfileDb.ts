@@ -44,6 +44,15 @@ export type ProfileFetchResult = {
 
 export type UpsertProfileResult = { ok: true } | { ok: false; error: DbErrorLike };
 
+export type AppProfileUpsertInput = {
+  user_id: string;
+  can_manage_blogs: boolean;
+  can_manage_tasks: boolean;
+  can_administer_tasks: boolean;
+  can_manage_users: boolean;
+  display_name: string | null;
+};
+
 export const DEFAULT_APP_PROFILE_FLAGS = {
   can_manage_blogs: false,
   can_manage_tasks: true,
@@ -210,6 +219,75 @@ async function upsertFullAccessAppProfileDirect(userId: string): Promise<UpsertP
     reportError(lastError, { source: 'upsertFullAccessAppProfileDirect.exhausted', userId });
   }
   return { ok: false, error: lastError ?? { message: 'Failed to upsert full-access profile' } };
+}
+
+async function upsertAppProfileRowViaRpc(input: AppProfileUpsertInput): Promise<UpsertProfileResult> {
+  const { error } = await supabase.rpc('svc_upsert_app_profile', {
+    p_user_id: input.user_id,
+    p_can_manage_blogs: input.can_manage_blogs,
+    p_can_manage_tasks: input.can_manage_tasks,
+    p_can_administer_tasks: input.can_administer_tasks,
+    p_can_manage_users: input.can_manage_users,
+    p_display_name: input.display_name,
+  });
+  if (!error) {
+    return { ok: true };
+  }
+  return { ok: false, error: enrichDbError(error) };
+}
+
+async function upsertAppProfileRowDirect(input: AppProfileUpsertInput): Promise<UpsertProfileResult> {
+  const updated_at = new Date().toISOString();
+  const payloads: Record<string, unknown>[] = [
+    { ...input, updated_at },
+    {
+      user_id: input.user_id,
+      can_manage_blogs: input.can_manage_blogs,
+      can_manage_tasks: input.can_manage_tasks,
+      can_administer_tasks: input.can_administer_tasks,
+      can_manage_users: input.can_manage_users,
+      updated_at,
+    },
+    {
+      user_id: input.user_id,
+      can_manage_blogs: input.can_manage_blogs,
+      can_manage_tasks: input.can_manage_tasks,
+      can_manage_users: input.can_manage_users,
+      updated_at,
+    },
+  ];
+
+  let lastError: DbErrorLike | null = null;
+  for (const payload of payloads) {
+    const result = await tryUpsertPayload(input.user_id, payload);
+    if (result.ok) {
+      return result;
+    }
+    lastError = result.error;
+    if (!isUndefinedColumnError(result.error)) {
+      reportError(result.error, { source: 'upsertAppProfileRowDirect', userId: input.user_id });
+      return result;
+    }
+  }
+
+  if (lastError) {
+    reportError(lastError, { source: 'upsertAppProfileRowDirect.exhausted', userId: input.user_id });
+  }
+  return { ok: false, error: lastError ?? { message: 'Failed to upsert profile' } };
+}
+
+/** Upsert permission flags for a user (user management create/update). */
+export async function upsertAppProfileRow(input: AppProfileUpsertInput): Promise<UpsertProfileResult> {
+  const rpc = await upsertAppProfileRowViaRpc(input);
+  if (rpc.ok) {
+    return rpc;
+  }
+  if (rpc.error && !isRpcNotFoundError(rpc.error)) {
+    reportError(rpc.error, { source: 'upsertAppProfileRowViaRpc', userId: input.user_id });
+    return rpc;
+  }
+
+  return upsertAppProfileRowDirect(input);
 }
 
 export async function upsertDefaultAppProfile(userId: string): Promise<UpsertProfileResult> {

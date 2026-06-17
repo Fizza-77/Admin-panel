@@ -170,7 +170,8 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(body?.message || 'Could not create user');
+        const detail = typeof body?.detail === 'string' ? body.detail : '';
+        throw new Error(detail ? `${body?.message || 'Could not create user'} (${detail})` : body?.message || 'Could not create user');
       }
       setNewEmail('');
       setNewPassword('');

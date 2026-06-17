@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/server';
 
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 
-import { ensureAppProfileRowsForUserIds } from '@/lib/permissions/appProfileDb';
+import { ensureAppProfileRowsForUserIds, upsertAppProfileRow } from '@/lib/permissions/appProfileDb';
 
 import { formatDbError } from '@/lib/db/errors';
 
@@ -267,46 +267,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 
 
-    const { error: profileError } = await supabase.from('app_profiles').upsert(
+    const profileResult = await upsertAppProfileRow({
+      user_id: created.user.id,
+      can_manage_blogs,
+      can_manage_tasks,
+      can_administer_tasks,
+      can_manage_users,
+      display_name,
+    });
 
-      {
-
-        user_id: created.user.id,
-
-        can_manage_blogs,
-
-        can_manage_tasks,
-
-        can_administer_tasks,
-
-        can_manage_users,
-
-        display_name,
-
-        updated_at: new Date().toISOString(),
-
-      },
-
-      { onConflict: 'user_id' },
-
-    );
-
-
-
-    if (profileError) {
-
-      reportError(profileError, { source: 'api/admin/users POST profile', userId: created.user.id });
-
+    if (!profileResult.ok) {
+      reportError(profileResult.error, { source: 'api/admin/users POST profile', userId: created.user.id });
       return res.status(500).json({
-
         message:
-
           'The Auth user was created but saving access flags failed. Set them manually in `app_profiles` or try again.',
-
-        detail: formatDbError(profileError),
-
+        detail: formatDbError(profileResult.error),
       });
-
     }
 
 
