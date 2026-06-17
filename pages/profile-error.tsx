@@ -89,8 +89,14 @@ export default function ProfileErrorPage({
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/login"
+            href="/settings"
             className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+          >
+            Open profile settings
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Sign in again
           </Link>

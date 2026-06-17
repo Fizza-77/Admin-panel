@@ -1,6 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthUserFromApiRequest } from '@/lib/auth';
-import { supabase } from '@/lib/supabase/server';
+import {
+  DEFAULT_APP_PROFILE_FLAGS,
+  fetchAppProfileRow,
+  upsertAppProfileRow,
+} from '@/lib/permissions/appProfileDb';
+import { formatDbError } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 const MAX_NAME = 120;
@@ -12,19 +17,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    const { data, error } = await supabase
-      .from('app_profiles')
-      .select('display_name')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const { row, error } = await fetchAppProfileRow(user.id);
 
     if (error) {
       reportError(error, { source: 'api/profile GET' });
-      return res.status(500).json({ message: 'Failed to load profile' });
+      return res.status(500).json({ message: formatDbError(error) });
     }
 
     return res.status(200).json({
-      display_name: data?.display_name ?? null,
+      display_name: row?.display_name ?? null,
       email: user.email ?? null,
     });
   }
@@ -34,31 +35,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const raw = typeof body.display_name === 'string' ? body.display_name.trim() : '';
     const display_name = raw.length > 0 ? raw.slice(0, MAX_NAME) : null;
 
-    const { data: existing } = await supabase.from('app_profiles').select('user_id').eq('user_id', user.id).maybeSingle();
+    const { row: existing, error: readErr } = await fetchAppProfileRow(user.id);
+    if (readErr) {
+      reportError(readErr, { source: 'api/profile PATCH read', userId: user.id });
+      return res.status(500).json({ message: formatDbError(readErr) });
+    }
 
-    if (existing) {
-      const { error: upErr } = await supabase
-        .from('app_profiles')
-        .update({ display_name, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id);
-      if (upErr) {
-        reportError(upErr, { source: 'api/profile PATCH update' });
-        return res.status(500).json({ message: upErr.message || 'Failed to save name' });
-      }
-    } else {
-      const { error: insErr } = await supabase.from('app_profiles').insert({
-        user_id: user.id,
-        can_manage_blogs: false,
-        can_manage_tasks: true,
-        can_administer_tasks: false,
-        can_manage_users: false,
-        display_name,
-        updated_at: new Date().toISOString(),
-      });
-      if (insErr) {
-        reportError(insErr, { source: 'api/profile PATCH insert' });
-        return res.status(500).json({ message: insErr.message || 'Failed to save name' });
-      }
+    const flags = existing ?? DEFAULT_APP_PROFILE_FLAGS;
+    const result = await upsertAppProfileRow({
+      user_id: user.id,
+      can_manage_blogs: flags.can_manage_blogs,
+      can_manage_tasks: flags.can_manage_tasks,
+      can_administer_tasks: flags.can_administer_tasks,
+      can_manage_users: flags.can_manage_users,
+      display_name,
+    });
+
+    if (!result.ok) {
+      reportError(result.error, { source: 'api/profile PATCH upsert', userId: user.id });
+      return res.status(500).json({ message: formatDbError(result.error) });
     }
 
     return res.status(200).json({ display_name, email: user.email ?? null });

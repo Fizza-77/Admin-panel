@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { GetServerSidePropsContext } from 'next';
 import { requireAuthentication } from '@/lib/auth';
 import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
+import { ensureAppProfileRow } from '@/lib/permissions/getAppProfile';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { Loader2 } from 'lucide-react';
@@ -13,6 +14,15 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
   if (!ctx) {
     return { redirect: { destination: '/login', permanent: false } };
   }
+
+  if (ctx.profileLoadError) {
+    await ensureAppProfileRow(ctx.userId);
+    const refreshed = await resolveAdminUserContextFromGssp(context);
+    if (refreshed) {
+      return { props: { permissions: refreshed.permissions } };
+    }
+  }
+
   return { props: { permissions: ctx.permissions } };
 });
 

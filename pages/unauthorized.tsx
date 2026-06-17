@@ -57,6 +57,9 @@ export default function UnauthorizedPage({ permissions }: { permissions: AppPerm
               Tasks
             </Link>
           )}
+          <Link href="/settings" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Profile settings
+          </Link>
           <Link href="/login" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Sign in again
           </Link>
