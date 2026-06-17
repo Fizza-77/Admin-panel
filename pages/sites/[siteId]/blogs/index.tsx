@@ -9,6 +9,7 @@ import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogReactions from '@/components/BlogReactions';
 import { supabase } from '@/lib/supabase/server';
 import { listBlogsForSite } from '@/lib/blogs/listBlogsForSite';
+import { resolveSitePage } from '@/lib/sites/resolveSitePageProps';
 import DataLoadError from '@/components/ui/DataLoadError';
 import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -40,17 +41,15 @@ interface SiteBlogsPageProps {
 
 export const getServerSideProps = requireAuthentication(
   requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
-  const { siteId } = context.params as { siteId: string };
+    const resolved = await resolveSitePage(context);
+    if (resolved.kind === 'redirect') {
+      return { redirect: { destination: resolved.destination, permanent: false } };
+    }
+    if (resolved.kind === 'notFound') {
+      return { notFound: true };
+    }
 
-  const { data: site, error: siteError } = await supabase
-    .from('sites')
-    .select('id,name,domain,site_key')
-    .eq('id', siteId)
-    .single();
-
-  if (siteError || !site) {
-    return { notFound: true };
-  }
+    const site = resolved.site;
 
   const blogsResult = await listBlogsForSite(site.id);
   const safeBlogs = blogsResult.data;

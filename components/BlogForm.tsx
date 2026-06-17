@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
@@ -11,6 +12,7 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
 
 import { Loader2, Save, Send } from 'lucide-react';
 import { reportError } from '@/lib/monitoring';
+import { setupUnlockHref } from '@/lib/setup';
 import { faqSchemaToInput } from '@/lib/blogs/faqSchema';
 
 type CategoryOption = { id: string; name: string };
@@ -48,6 +50,7 @@ export default function BlogForm({
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoriesOrphaned, setCategoriesOrphaned] = useState(false);
   const prevSiteIdRef = useRef<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm({
@@ -91,6 +94,7 @@ export default function BlogForm({
     }
     setCategoriesLoading(true);
     setCategoriesError(null);
+    setCategoriesOrphaned(false);
     (async () => {
       try {
         const response = await fetch(`/api/sites/${siteId}/blog-categories`, {
@@ -101,6 +105,7 @@ export default function BlogForm({
           const errBody = await response.json().catch(() => ({}));
           const msg = errBody?.message || `Failed to load categories (${response.status})`;
           setCategoriesError(msg);
+          setCategoriesOrphaned(Boolean(errBody?.orphaned));
           setCategories([]);
           reportError(new Error(msg), { source: 'BlogForm.loadCategories.http', siteId, status: response.status });
           return;
@@ -341,7 +346,17 @@ export default function BlogForm({
                 <p className="mt-1 text-xs text-gray-500">Loading categories…</p>
               )}
               {categoriesError && (
-                <p className="mt-1 text-xs text-red-600">{categoriesError}</p>
+                <div className="mt-1 space-y-1">
+                  <p className="text-xs text-red-600">{categoriesError}</p>
+                  {categoriesOrphaned && siteId && (
+                    <Link
+                      href={setupUnlockHref(`/sites/${siteId}/recover`)}
+                      className="inline-flex text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                    >
+                      Re-connect this site →
+                    </Link>
+                  )}
+                </div>
               )}
               {!categoriesLoading && !categoriesError && categories.length === 0 && (
                 <p className="mt-1 text-xs text-amber-800">

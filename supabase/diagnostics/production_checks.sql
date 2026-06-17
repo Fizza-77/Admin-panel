@@ -92,6 +92,16 @@ SELECT 'app_profiles', count(*) FROM public.app_profiles
 UNION ALL
 SELECT 'blog_categories', count(*) FROM public.blog_categories;
 
+-- 7b) Blogs whose site_id has no row in public.sites (orphaned — causes "Site not found" on new blog)
+SELECT
+  b.site_id,
+  count(*) AS blog_count
+FROM public.blogs b
+LEFT JOIN public.sites s ON s.id = b.site_id
+WHERE s.id IS NULL
+GROUP BY b.site_id
+ORDER BY blog_count DESC;
+
 -- 8) Users with all permissions false (legitimate vs missing bootstrap)
 SELECT
   u.email,

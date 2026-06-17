@@ -4,7 +4,9 @@ import { requireAuthentication } from '@/lib/auth';
 import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import SitesList from '@/components/SitesList';
+import OrphanedSitesBanner from '@/components/OrphanedSitesBanner';
 import { listSites } from '@/lib/sites';
+import { listOrphanedBlogSites, type OrphanedBlogSite } from '@/lib/sites/orphanedBlogSites';
 import type { Site } from '@/types/site';
 import type { AppPermissions } from '@/lib/permissions/types';
 
@@ -34,7 +36,7 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
     return { redirect: { destination: '/unauthorized', permanent: false } };
   }
 
-  const { sites, error, warning } = await listSites();
+  const [{ sites, error, warning }, orphanedResult] = await Promise.all([listSites(), listOrphanedBlogSites()]);
 
   return {
     props: {
@@ -42,6 +44,8 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
       hasSitesLoadError: Boolean(error),
       sitesLoadError: error,
       sitesLoadWarning: warning,
+      orphanedSites: orphanedResult.orphans,
+      orphanedSitesError: orphanedResult.error,
       permissions,
     },
   };
@@ -52,6 +56,8 @@ interface DashboardProps {
   hasSitesLoadError: boolean;
   sitesLoadError: string | null;
   sitesLoadWarning: string | null;
+  orphanedSites: OrphanedBlogSite[];
+  orphanedSitesError: string | null;
   permissions: AppPermissions;
 }
 
@@ -60,6 +66,8 @@ export default function Dashboard({
   hasSitesLoadError,
   sitesLoadError,
   sitesLoadWarning,
+  orphanedSites,
+  orphanedSitesError,
   permissions,
 }: DashboardProps) {
   return (
@@ -67,6 +75,11 @@ export default function Dashboard({
       <Head>
         <title>Dashboard - Admin</title>
       </Head>
+
+      <OrphanedSitesBanner orphans={orphanedSites} />
+      {orphanedSitesError && (
+        <p className="mb-6 text-sm text-amber-800">Could not check for orphaned blog sites: {orphanedSitesError}</p>
+      )}
 
       <SitesList
         sites={sites}

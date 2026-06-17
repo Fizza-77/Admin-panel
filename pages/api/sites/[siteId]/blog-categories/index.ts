@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { supabase } from '@/lib/supabase/server';
+import { countBlogsForSiteId, lookupSiteById, normalizeSiteId } from '@/lib/sites/getSiteById';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -10,14 +11,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(auth.status).json({ message: auth.message });
   }
 
-  const siteId = req.query.siteId;
-  if (typeof siteId !== 'string') {
+  const siteId = normalizeSiteId(typeof req.query.siteId === 'string' ? req.query.siteId : null);
+  if (!siteId) {
     return res.status(400).json({ message: 'Invalid site' });
   }
 
-  const { data: site } = await supabase.from('sites').select('id').eq('id', siteId).maybeSingle();
-  if (!site) {
-    return res.status(404).json({ message: 'Site not found' });
+  const siteLookup = await lookupSiteById(siteId);
+  if (!siteLookup.ok) {
+    if (siteLookup.reason === 'query_error') {
+      return res.status(500).json({ message: siteLookup.message });
+    }
+    if (siteLookup.reason === 'invalid_id') {
+      return res.status(400).json({ message: siteLookup.message });
+    }
+
+    const blogCount = await countBlogsForSiteId(siteId);
+    if (blogCount > 0) {
+      return res.status(404).json({
+        message:
+          'This site record is missing from the database, but blog posts still reference it. Re-connect the site from the dashboard to fix this.',
+        orphaned: true,
+        blogCount,
+        siteId,
+      });
+    }
+    return res.status(404).json({ message: 'Site not found', siteId });
   }
 
   if (req.method === 'GET') {

@@ -3,7 +3,7 @@ import { GetServerSidePropsContext } from 'next';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogForm from '@/components/BlogForm';
-import { supabase } from '@/lib/supabase/server';
+import { resolveSitePage } from '@/lib/sites/resolveSitePageProps';
 import type { Site } from '@/types/site';
 import type { AppPermissions } from '@/lib/permissions/types';
 
@@ -14,23 +14,14 @@ interface CreateSiteBlogPageProps {
 
 export const getServerSideProps = requireAuthentication(
   requirePermission({ blogs: true }, async (context: GetServerSidePropsContext) => {
-  const { siteId } = context.params as { siteId: string };
-
-  const { data: site, error } = await supabase
-    .from('sites')
-    .select('id,name,domain,site_key')
-    .eq('id', siteId)
-    .single();
-
-  if (error || !site) {
+    const resolved = await resolveSitePage(context);
+    if (resolved.kind === 'site') {
+      return { props: { site: resolved.site } };
+    }
+    if (resolved.kind === 'redirect') {
+      return { redirect: { destination: resolved.destination, permanent: false } };
+    }
     return { notFound: true };
-  }
-
-  return {
-    props: {
-      site,
-    },
-  };
   }),
 );
 

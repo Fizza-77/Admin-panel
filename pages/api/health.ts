@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { checkAppProfileSchema } from '@/lib/db/schemaCheck';
+import { listOrphanedBlogSites } from '@/lib/sites/orphanedBlogSites';
 import { formatDbError, isRlsPolicyError } from '@/lib/db/errors';
 import { inspectServiceRoleKey } from '@/lib/supabase/validateServiceRoleKey';
 
@@ -37,6 +38,11 @@ type HealthResponse = {
   app_profiles_write_probe: {
     ok: boolean;
     error: string | null;
+  };
+  orphaned_blog_sites: {
+    count: number;
+    blog_rows_affected: number;
+    sample_site_ids: string[];
   };
 };
 
@@ -81,6 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       },
       app_profiles_schema: { tableReadable: false, missingColumns: [], error: null },
       app_profiles_write_probe: { ok: false, error: null },
+      orphaned_blog_sites: { count: 0, blog_rows_affected: 0, sample_site_ids: [] },
     });
   }
 
@@ -117,16 +124,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       },
       app_profiles_schema: { tableReadable: false, missingColumns: [], error: 'Not checked' },
       app_profiles_write_probe: { ok: false, error: 'Not checked' },
+      orphaned_blog_sites: { count: 0, blog_rows_affected: 0, sample_site_ids: [] },
     });
   }
 
-  const [sites, blogs, appProfiles, schema, profileProbe] = await Promise.all([
+  const [sites, blogs, appProfiles, schema, profileProbe, orphanedSites] = await Promise.all([
     countTable('sites'),
     countTable('blogs'),
     countTable('app_profiles'),
     checkAppProfileSchema(),
     probeAppProfilesAccess(),
+    listOrphanedBlogSites(),
   ]);
+
+  const orphanedBlogSites = {
+    count: orphanedSites.orphans.length,
+    blog_rows_affected: orphanedSites.orphans.reduce((sum, item) => sum + item.blog_count, 0),
+    sample_site_ids: orphanedSites.orphans.slice(0, 5).map((item) => item.site_id),
+  };
 
   const reachable = sites.ok || blogs.ok || appProfiles.ok;
   const tableFailures = [sites, blogs, appProfiles].filter((t) => !t.ok).length;
@@ -136,7 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   let status: HealthResponse['status'] = 'ok';
   if (!reachable || keyInvalid || !profileProbe.ok) {
     status = 'error';
-  } else if (tableFailures > 0 || schemaIssues) {
+  } else if (tableFailures > 0 || schemaIssues || orphanedBlogSites.count > 0) {
     status = 'degraded';
   }
 
@@ -166,5 +181,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       error: schema.queryError,
     },
     app_profiles_write_probe: profileProbe,
+    orphaned_blog_sites: orphanedBlogSites,
   });
 }
