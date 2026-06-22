@@ -71,7 +71,7 @@ export default async function handler(
         .update(row)
         .eq('id', blogId)
         .eq('site_id', siteId)
-        .select('id');
+        .select('id,category_id');
 
       if (error) {
         console.error('Blog update error:', error);

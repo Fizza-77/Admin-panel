@@ -78,6 +78,17 @@ export default function BlogForm({
 
   const titleWatcher = watch('title');
   const slugWatcher = watch('slug');
+  const categoryIdWatcher = watch('category_id');
+
+  useEffect(() => {
+    const fromBlog = initialData?.category_id;
+    if (typeof fromBlog !== 'string' || !fromBlog.trim()) {
+      return;
+    }
+    if (categories.some((c) => c.id === fromBlog)) {
+      setValue('category_id', fromBlog, { shouldDirty: false });
+    }
+  }, [categories, initialData?.category_id, setValue]);
 
   useEffect(() => {
     if (prevSiteIdRef.current !== null && prevSiteIdRef.current !== siteId) {
@@ -198,7 +209,14 @@ export default function BlogForm({
         return;
       }
 
-      const selectedCategory = categories.find((c) => c.id === data.category_id);
+      const categoryId =
+        (typeof data.category_id === 'string' && data.category_id.trim()) ||
+        (typeof categoryIdWatcher === 'string' && categoryIdWatcher.trim()) ||
+        '';
+      const resolvedCategoryId = categoryId.trim() || null;
+      const selectedCategory = resolvedCategoryId
+        ? categories.find((c) => c.id === resolvedCategoryId)
+        : undefined;
 
       const body = {
         status,
@@ -218,7 +236,7 @@ export default function BlogForm({
         publisher_name: data.publisher_name || null,
         publisher_logo_url: data.publisher_logo_url || null,
         canonical_url: data.canonical_url || null,
-        category_id: data.category_id || null,
+        category_id: resolvedCategoryId,
         faq_schema: data.faq_schema || null,
       };
 
@@ -282,7 +300,7 @@ export default function BlogForm({
         <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || categoriesLoading}
             onClick={() => submitWithStatus('draft')}
             className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
           >
@@ -291,7 +309,7 @@ export default function BlogForm({
           </button>
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || categoriesLoading}
             onClick={() => submitWithStatus('published')}
             className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
           >
@@ -334,18 +352,31 @@ export default function BlogForm({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category <span className="text-gray-400 font-normal">(optional)</span>
               </label>
-              <select
-                {...register('category_id')}
-                disabled={!siteId || categoriesLoading}
-                className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="">Select category</option>
-                {(Array.isArray(categories) ? categories : []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                name="category_id"
+                control={control}
+                render={({ field }) => (
+                  <select
+                    id="category_id"
+                    name={field.name}
+                    ref={field.ref}
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    onBlur={field.onBlur}
+                    aria-busy={categoriesLoading}
+                    className={`block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white ${
+                      categoriesLoading ? 'opacity-60 cursor-wait' : ''
+                    }`}
+                  >
+                    <option value="">Select category</option>
+                    {(Array.isArray(categories) ? categories : []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
               {categoriesLoading && (
                 <p className="mt-1 text-xs text-gray-500">Loading categories…</p>
               )}

@@ -39,6 +39,17 @@ function resolveDatePublished(body: BlogBody): Date {
   return parsed;
 }
 
+function normalizeOptionalUuid(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export function buildBlogRow(siteId: string, body: BlogBody) {
   const now = new Date().toISOString();
   const status = body.status === 'draft' ? 'draft' : 'published';
@@ -64,7 +75,7 @@ export function buildBlogRow(siteId: string, body: BlogBody) {
     publisher_name: body.publisher_name ?? null,
     publisher_logo_url: body.publisher_logo_url ?? null,
     canonical_url: body.canonical_url ?? null,
-    category_id: body.category_id ?? null,
+    category_id: normalizeOptionalUuid(body.category_id),
     faq_schema: parseFaqSchemaInput(body.faq_schema),
     updated_at: now,
   };
