@@ -1,5 +1,6 @@
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
-import { rlsConfigurationHint } from '@/lib/db/errors';
+import { formatDbError, isRlsPolicyError, rlsConfigurationHint } from '@/lib/db/errors';
+import { probeBlogWriteAccess } from '@/lib/blogs/probeBlogWriteAccess';
 
 export type WriteMissDiagnosis = {
   status: number;
@@ -53,11 +54,41 @@ export async function diagnoseBlogWriteMiss(
     };
   }
 
+  const probeTimestamp = new Date().toISOString();
+  const { data: probeRows, error: probeError } = await supabase
+    .from('blogs')
+    .update({ date_modified: probeTimestamp })
+    .eq('id', blogId)
+    .eq('site_id', siteId)
+    .select('id');
+
+  if (probeError) {
+    const rlsHint = isRlsPolicyError(probeError)
+      ? ` ${rlsConfigurationHint()}`
+      : '';
+    return {
+      status: 503,
+      message:
+        `The blog exists but the ${action} did not apply: ${formatDbError(probeError)}.${rlsHint}`,
+    };
+  }
+
+  if (!probeRows || probeRows.length === 0) {
+    return {
+      status: 503,
+      message:
+        `The blog exists but the ${action} did not apply (no rows changed). ` +
+        'Row-level security or table grants are blocking writes. ' +
+        'Run supabase/migrations/20260623150000_rls_definitive_reset.sql in the Supabase SQL Editor, ' +
+        'then confirm /api/health reports blogs_write_probe.ok=true.',
+    };
+  }
+
   return {
-    status: 503,
+    status: 500,
     message:
-      `The blog exists but the ${action} did not apply (no rows changed). ` +
-      'This is usually caused by row-level security blocking writes on the server database client. ' +
-      'Confirm /api/health reports service_role_key.valid=true on this host, then retry.',
+      `The blog exists and a minimal write succeeded, but the full ${action} did not apply. ` +
+      'This usually means a column in the save payload is missing on the database or rejected by a constraint ' +
+      '(for example date_modified, faq_schema, or category_id). Check the server log for the exact database error.',
   };
 }

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { checkAppProfileSchema } from '@/lib/db/schemaCheck';
+import { probeBlogWriteAccess } from '@/lib/blogs/probeBlogWriteAccess';
 import { listOrphanedBlogSites } from '@/lib/sites/orphanedBlogSites';
 import { formatDbError, isRlsPolicyError } from '@/lib/db/errors';
 import { inspectServiceRoleKey } from '@/lib/supabase/validateServiceRoleKey';
@@ -38,6 +39,11 @@ type HealthResponse = {
   app_profiles_write_probe: {
     ok: boolean;
     error: string | null;
+  };
+  blogs_write_probe: {
+    ok: boolean;
+    error: string | null;
+    blog_id: string | null;
   };
   orphaned_blog_sites: {
     count: number;
@@ -87,6 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       },
       app_profiles_schema: { tableReadable: false, missingColumns: [], error: null },
       app_profiles_write_probe: { ok: false, error: null },
+      blogs_write_probe: { ok: false, error: null, blog_id: null },
       orphaned_blog_sites: { count: 0, blog_rows_affected: 0, sample_site_ids: [] },
     });
   }
@@ -124,16 +131,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       },
       app_profiles_schema: { tableReadable: false, missingColumns: [], error: 'Not checked' },
       app_profiles_write_probe: { ok: false, error: 'Not checked' },
+      blogs_write_probe: { ok: false, error: 'Not checked', blog_id: null },
       orphaned_blog_sites: { count: 0, blog_rows_affected: 0, sample_site_ids: [] },
     });
   }
 
-  const [sites, blogs, appProfiles, schema, profileProbe, orphanedSites] = await Promise.all([
+  const [sites, blogs, appProfiles, schema, profileProbe, blogWriteProbe, orphanedSites] = await Promise.all([
     countTable('sites'),
     countTable('blogs'),
     countTable('app_profiles'),
     checkAppProfileSchema(),
     probeAppProfilesAccess(),
+    probeBlogWriteAccess(),
     listOrphanedBlogSites(),
   ]);
 
@@ -149,7 +158,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const keyInvalid = !keyStatus.valid || !supabaseServiceRoleKeyStatus.valid;
 
   let status: HealthResponse['status'] = 'ok';
-  if (!reachable || keyInvalid || !profileProbe.ok) {
+  if (!reachable || keyInvalid || !profileProbe.ok || !blogWriteProbe.ok) {
     status = 'error';
   } else if (tableFailures > 0 || schemaIssues || orphanedBlogSites.count > 0) {
     status = 'degraded';
@@ -181,6 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       error: schema.queryError,
     },
     app_profiles_write_probe: profileProbe,
+    blogs_write_probe: blogWriteProbe,
     orphaned_blog_sites: orphanedBlogSites,
   });
 }
