@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
-import { supabase } from '@/lib/supabase/server';
-import { apiErrorFromDbError } from '@/lib/db/errors';
+import { normalizeSiteId } from '@/lib/sites/getSiteById';
+import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
+import { apiErrorFromDbError, rlsConfigurationHint } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,8 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(auth.status).json({ message: auth.message });
     }
 
-    const siteId = req.query.siteId;
-    if (typeof siteId !== 'string') {
+    const siteId = normalizeSiteId(typeof req.query.siteId === 'string' ? req.query.siteId : null);
+    if (!siteId) {
       return res.status(400).json({ message: 'Invalid site' });
     }
 
@@ -39,6 +40,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
+      if (!supabaseServiceRoleKeyStatus.valid) {
+        return res.status(503).json({
+          message:
+            `${supabaseServiceRoleKeyStatus.message ?? 'Invalid SUPABASE_SERVICE_ROLE_KEY'}. ` +
+            `Admin cannot create blogs when the server uses the anon key. ${rlsConfigurationHint()}`,
+        });
+      }
+
       const body = req.body as BlogBody;
       const status = body?.status === 'draft' ? 'draft' : 'published';
       if (!body?.title || !body?.slug || !(body?.date_published || body?.display_date)) {

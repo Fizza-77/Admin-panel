@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
-import { supabase } from '@/lib/supabase/server';
+import { listCategoriesForSite } from '@/lib/categories/listCategoriesForSite';
+import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { countBlogsForSiteId, lookupSiteById, normalizeSiteId } from '@/lib/sites/getSiteById';
+import { rlsConfigurationHint } from '@/lib/db/errors';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -39,18 +41,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    const { data, error } = await supabase
-      .from('blog_categories')
-      .select('id,site_id,slug,name,description,sort_order,created_at')
-      .eq('site_id', siteId)
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Failed to load categories' });
+    if (!supabaseServiceRoleKeyStatus.valid) {
+      return res.status(503).json({
+        message:
+          `${supabaseServiceRoleKeyStatus.message ?? 'Invalid SUPABASE_SERVICE_ROLE_KEY'}. ` +
+          `Admin cannot load categories when the server uses the anon key. ${rlsConfigurationHint()}`,
+      });
     }
 
-    return res.status(200).json({ categories: data ?? [] });
+    const categoriesResult = await listCategoriesForSite(siteId);
+    if (!categoriesResult.ok) {
+      console.error(categoriesResult.error, categoriesResult.dbError);
+      return res.status(500).json({ message: categoriesResult.error });
+    }
+
+    const categories = categoriesResult.data;
+    if (categories.length === 0) {
+      const blogCount = await countBlogsForSiteId(siteId);
+      if (blogCount > 0) {
+        return res.status(200).json({
+          categories: [],
+          warning:
+            'This site has blog posts but no categories were returned. If categories exist in Supabase, add a SELECT policy on blog_categories (see docs) or confirm the server uses the service_role key.',
+        });
+      }
+    }
+
+    return res.status(200).json({ categories });
   }
 
   if (req.method === 'POST') {

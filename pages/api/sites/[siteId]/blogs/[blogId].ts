@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
+import { diagnoseBlogWriteMiss } from '@/lib/blogs/diagnoseWriteMiss';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
-import { supabase } from '@/lib/supabase/server';
-import { apiErrorFromDbError } from '@/lib/db/errors';
+import { normalizeSiteId } from '@/lib/sites/getSiteById';
+import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
+import { apiErrorFromDbError, rlsConfigurationHint } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
 type SuccessResponse = {
@@ -24,13 +26,22 @@ export default async function handler(
       return res.status(auth.status).json({ message: auth.message });
     }
 
-    const { siteId, blogId } = req.query;
+    const siteId = normalizeSiteId(typeof req.query.siteId === 'string' ? req.query.siteId : null);
+    const blogId = normalizeSiteId(typeof req.query.blogId === 'string' ? req.query.blogId : null);
 
-    if (typeof siteId !== 'string' || typeof blogId !== 'string') {
+    if (!siteId || !blogId) {
       return res.status(400).json({ message: 'Invalid route parameters' });
     }
 
     if (req.method === 'PUT') {
+      if (!supabaseServiceRoleKeyStatus.valid) {
+        return res.status(503).json({
+          message:
+            `${supabaseServiceRoleKeyStatus.message ?? 'Invalid SUPABASE_SERVICE_ROLE_KEY'}. ` +
+            `Admin cannot update blogs when the server uses the anon key. ${rlsConfigurationHint()}`,
+        });
+      }
+
       const body = req.body as BlogBody;
       const status = body?.status === 'draft' ? 'draft' : 'published';
       if (!body?.title || !body?.slug || !(body?.date_published || body?.display_date)) {
@@ -69,7 +80,14 @@ export default async function handler(
       }
 
       if (!data || data.length === 0) {
-        return res.status(404).json({ message: 'Blog not found' });
+        const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'update');
+        reportError(new Error(diagnosis.message), {
+          source: 'api/sites/[siteId]/blogs/[blogId].PUT.zeroRows',
+          blogId,
+          siteId,
+          serviceRoleValid: supabaseServiceRoleKeyStatus.valid,
+        });
+        return res.status(diagnosis.status).json({ message: diagnosis.message });
       }
 
       return res.status(200).json({
@@ -92,7 +110,14 @@ export default async function handler(
       }
 
       if (!data || data.length === 0) {
-        return res.status(404).json({ message: 'Blog not found' });
+        const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'delete');
+        reportError(new Error(diagnosis.message), {
+          source: 'api/sites/[siteId]/blogs/[blogId].DELETE.zeroRows',
+          blogId,
+          siteId,
+          serviceRoleValid: supabaseServiceRoleKeyStatus.valid,
+        });
+        return res.status(diagnosis.status).json({ message: diagnosis.message });
       }
 
       return res.status(200).json({

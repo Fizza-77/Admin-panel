@@ -51,6 +51,7 @@ export default function BlogForm({
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [categoriesOrphaned, setCategoriesOrphaned] = useState(false);
+  const [categoriesWarning, setCategoriesWarning] = useState<string | null>(null);
   const prevSiteIdRef = useRef<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm({
@@ -95,6 +96,7 @@ export default function BlogForm({
     setCategoriesLoading(true);
     setCategoriesError(null);
     setCategoriesOrphaned(false);
+    setCategoriesWarning(null);
     (async () => {
       try {
         const response = await fetch(`/api/sites/${siteId}/blog-categories`, {
@@ -106,12 +108,14 @@ export default function BlogForm({
           const msg = errBody?.message || `Failed to load categories (${response.status})`;
           setCategoriesError(msg);
           setCategoriesOrphaned(Boolean(errBody?.orphaned));
+          setCategoriesWarning(null);
           setCategories([]);
           reportError(new Error(msg), { source: 'BlogForm.loadCategories.http', siteId, status: response.status });
           return;
         }
         const body = await response.json().catch(() => ({}));
         const list = Array.isArray(body?.categories) ? body.categories : [];
+        setCategoriesWarning(typeof body?.warning === 'string' ? body.warning : null);
         setCategories(
           list
             .filter((c: any) => c && typeof c.id === 'string' && typeof c.name === 'string')
@@ -358,9 +362,17 @@ export default function BlogForm({
                   )}
                 </div>
               )}
-              {!categoriesLoading && !categoriesError && categories.length === 0 && (
+              {categoriesWarning && (
+                <p className="mt-1 text-xs text-amber-800">{categoriesWarning}</p>
+              )}
+              {!categoriesLoading && !categoriesError && !categoriesWarning && categories.length === 0 && (
                 <p className="mt-1 text-xs text-amber-800">
-                  No categories configured for this site.
+                  No categories configured for this site.{' '}
+                  {siteId && (
+                    <Link href={`/sites/${siteId}/categories`} className="font-medium text-cyan-700 hover:text-cyan-800">
+                      Add categories
+                    </Link>
+                  )}
                 </p>
               )}
             </div>
