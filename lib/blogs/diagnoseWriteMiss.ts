@@ -1,6 +1,6 @@
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { formatDbError, isRlsPolicyError, rlsConfigurationHint } from '@/lib/db/errors';
-import { probeBlogWriteAccess } from '@/lib/blogs/probeBlogWriteAccess';
+import { updateBlog } from '@/lib/blogs/blogWrites';
 
 export type WriteMissDiagnosis = {
   status: number;
@@ -13,7 +13,6 @@ function sameUuid(a: string, b: string): boolean {
 
 /**
  * When an UPDATE/DELETE matches 0 rows, distinguish missing blog, wrong site, and blocked writes.
- * The generic "Blog not found" hid cases where the row exists but Postgres rejected the write.
  */
 export async function diagnoseBlogWriteMiss(
   blogId: string,
@@ -55,40 +54,30 @@ export async function diagnoseBlogWriteMiss(
   }
 
   const probeTimestamp = new Date().toISOString();
-  const { data: probeRows, error: probeError } = await supabase
-    .from('blogs')
-    .update({ date_modified: probeTimestamp })
-    .eq('id', blogId)
-    .eq('site_id', siteId)
-    .select('id');
+  const probe = await updateBlog(blogId, siteId, {
+    date_modified: probeTimestamp,
+    updated_at: probeTimestamp,
+  });
 
-  if (probeError) {
-    const rlsHint = isRlsPolicyError(probeError)
-      ? ` ${rlsConfigurationHint()}`
-      : '';
+  if (probe.ok) {
     return {
-      status: 503,
+      status: 500,
       message:
-        `The blog exists but the ${action} did not apply: ${formatDbError(probeError)}.${rlsHint}`,
+        `The blog exists and a minimal write succeeded, but the full ${action} did not apply. ` +
+        'This usually means a column in the save payload is missing on the database or rejected by a constraint ' +
+        '(for example faq_schema or category_id). Check the server log for the exact database error.',
     };
   }
 
-  if (!probeRows || probeRows.length === 0) {
-    return {
-      status: 503,
-      message:
-        `The blog exists but the ${action} did not apply (no rows changed). ` +
-        'Row-level security or table grants are blocking writes. ' +
-        'Run supabase/migrations/20260623150000_rls_definitive_reset.sql in the Supabase SQL Editor, ' +
-        'then confirm /api/health reports blogs_write_probe.ok=true.',
-    };
+  if (probe.error.message?.includes('BLOG_UPDATE_NO_MATCH')) {
+    return { status: 404, message: 'Blog not found for this site.' };
   }
 
+  const rlsHint = isRlsPolicyError(probe.error) ? ` ${rlsConfigurationHint()}` : '';
   return {
-    status: 500,
+    status: 503,
     message:
-      `The blog exists and a minimal write succeeded, but the full ${action} did not apply. ` +
-      'This usually means a column in the save payload is missing on the database or rejected by a constraint ' +
-      '(for example date_modified, faq_schema, or category_id). Check the server log for the exact database error.',
+      `The blog exists but the ${action} did not apply: ${formatDbError(probe.error)}.${rlsHint} ` +
+      'Run supabase/migrations/20260623160000_svc_blog_writes.sql in the Supabase SQL Editor.',
   };
 }

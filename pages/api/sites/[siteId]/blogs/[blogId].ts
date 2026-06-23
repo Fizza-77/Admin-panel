@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { diagnoseBlogWriteMiss } from '@/lib/blogs/diagnoseWriteMiss';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
+import { updateBlog, deleteBlog, formatBlogWriteError } from '@/lib/blogs/blogWrites';
 import { normalizeSiteId } from '@/lib/sites/getSiteById';
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { apiErrorFromDbError, rlsConfigurationHint } from '@/lib/db/errors';
@@ -48,7 +49,7 @@ export default async function handler(
         return res.status(400).json({ message: 'Missing required fields: title, slug, date_published' });
       }
 
-      const { data: slugConflict } = await supabase
+      const { data, error } = await supabase
         .from('blogs')
         .select('id')
         .eq('site_id', siteId)
@@ -56,7 +57,12 @@ export default async function handler(
         .neq('id', blogId)
         .maybeSingle();
 
-      if (slugConflict) {
+      if (error) {
+        console.error('Slug check error:', error);
+        return res.status(500).json({ message: 'Failed to check slug' });
+      }
+
+      if (data) {
         return res.status(409).json({ message: 'This slug is already in use for this site.' });
       }
 
@@ -66,28 +72,15 @@ export default async function handler(
       } catch (buildError: any) {
         return res.status(400).json({ message: buildError?.message || 'Invalid blog payload' });
       }
-      const { data, error } = await supabase
-        .from('blogs')
-        .update(row)
-        .eq('id', blogId)
-        .eq('site_id', siteId)
-        .select('id,category_id');
 
-      if (error) {
-        console.error('Blog update error:', error);
-        const { status, message } = apiErrorFromDbError(error, 'blog update');
-        return res.status(status).json({ message });
-      }
-
-      if (!data || data.length === 0) {
-        const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'update');
-        reportError(new Error(diagnosis.message), {
-          source: 'api/sites/[siteId]/blogs/[blogId].PUT.zeroRows',
-          blogId,
-          siteId,
-          serviceRoleValid: supabaseServiceRoleKeyStatus.valid,
-        });
-        return res.status(diagnosis.status).json({ message: diagnosis.message });
+      const writeResult = await updateBlog(blogId, siteId, row);
+      if (!writeResult.ok) {
+        if (writeResult.error.message?.includes('BLOG_UPDATE_NO_MATCH')) {
+          const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'update');
+          return res.status(diagnosis.status).json({ message: diagnosis.message });
+        }
+        const { status, message } = apiErrorFromDbError(writeResult.error, 'blog update');
+        return res.status(status).json({ message: formatBlogWriteError(writeResult.error) || message });
       }
 
       return res.status(200).json({
@@ -97,27 +90,13 @@ export default async function handler(
     }
 
     if (req.method === 'DELETE') {
-      const { data, error } = await supabase
-        .from('blogs')
-        .delete()
-        .eq('id', blogId)
-        .eq('site_id', siteId)
-        .select('id');
-
-      if (error) {
-        console.error('Error deleting blog:', error);
-        return res.status(500).json({ message: 'Failed to delete blog' });
-      }
-
-      if (!data || data.length === 0) {
-        const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'delete');
-        reportError(new Error(diagnosis.message), {
-          source: 'api/sites/[siteId]/blogs/[blogId].DELETE.zeroRows',
-          blogId,
-          siteId,
-          serviceRoleValid: supabaseServiceRoleKeyStatus.valid,
-        });
-        return res.status(diagnosis.status).json({ message: diagnosis.message });
+      const writeResult = await deleteBlog(blogId, siteId);
+      if (!writeResult.ok) {
+        if (writeResult.error.message?.includes('BLOG_DELETE_NO_MATCH')) {
+          const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'delete');
+          return res.status(diagnosis.status).json({ message: diagnosis.message });
+        }
+        return res.status(500).json({ message: formatBlogWriteError(writeResult.error) });
       }
 
       return res.status(200).json({

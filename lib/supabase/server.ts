@@ -23,6 +23,12 @@ export const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_
     persistSession: false,
     autoRefreshToken: false,
   },
+  global: {
+    headers: {
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+    },
+  },
   db: {
     schema: 'public',
   },

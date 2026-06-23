@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/server';
-import { formatDbError, isRlsPolicyError, rlsConfigurationHint } from '@/lib/db/errors';
+import { formatDbError, isRpcNotFoundError, isRlsPolicyError, rlsConfigurationHint } from '@/lib/db/errors';
 
 export type BlogWriteProbeResult = {
   ok: boolean;
@@ -7,11 +7,41 @@ export type BlogWriteProbeResult = {
   blog_id: string | null;
 };
 
+async function probeBlogWriteViaRpc(): Promise<BlogWriteProbeResult | null> {
+  const { data, error } = await supabase.rpc('svc_probe_blog_write');
+
+  if (error) {
+    if (isRpcNotFoundError(error)) {
+      return null;
+    }
+    const msg = isRlsPolicyError(error)
+      ? `${formatDbError(error)} — blog write RPC blocked. ${rlsConfigurationHint()}`
+      : formatDbError(error);
+    return { ok: false, error: msg, blog_id: null };
+  }
+
+  if (!data || typeof data !== 'object') {
+    return { ok: false, error: 'svc_probe_blog_write returned invalid payload', blog_id: null };
+  }
+
+  const payload = data as { ok?: boolean; blog_id?: string | null; message?: string | null };
+  return {
+    ok: Boolean(payload.ok),
+    error: payload.ok ? null : payload.message ?? 'Blog write probe failed',
+    blog_id: payload.blog_id ? String(payload.blog_id) : null,
+  };
+}
+
 /**
  * Attempt a minimal UPDATE on one blog row to verify the server client can write.
- * Used by /api/health and write-miss diagnostics.
+ * Prefers SECURITY DEFINER RPC; falls back to direct table update.
  */
 export async function probeBlogWriteAccess(): Promise<BlogWriteProbeResult> {
+  const rpcProbe = await probeBlogWriteViaRpc();
+  if (rpcProbe) {
+    return rpcProbe;
+  }
+
   const { data: sample, error: sampleError } = await supabase
     .from('blogs')
     .select('id,site_id')
@@ -38,7 +68,7 @@ export async function probeBlogWriteAccess(): Promise<BlogWriteProbeResult> {
 
   if (error) {
     const msg = isRlsPolicyError(error)
-      ? `${formatDbError(error)} — blog writes blocked. Run the RLS reset migration in Supabase SQL Editor. ${rlsConfigurationHint()}`
+      ? `${formatDbError(error)} — blog writes blocked. Run 20260623160000_svc_blog_writes.sql in Supabase SQL Editor. ${rlsConfigurationHint()}`
       : formatDbError(error);
     return { ok: false, error: msg, blog_id: String(sample.id) };
   }
@@ -47,8 +77,7 @@ export async function probeBlogWriteAccess(): Promise<BlogWriteProbeResult> {
     return {
       ok: false,
       error:
-        'Blog write probe updated 0 rows (RLS or missing UPDATE grant on public.blogs). ' +
-        'Run supabase/migrations/20260623150000_rls_definitive_reset.sql in Supabase SQL Editor.',
+        'Blog write probe updated 0 rows. Run supabase/migrations/20260623160000_svc_blog_writes.sql in the Supabase SQL Editor.',
       blog_id: String(sample.id),
     };
   }

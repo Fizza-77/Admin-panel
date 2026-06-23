@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
+import { insertBlog, formatBlogWriteError } from '@/lib/blogs/blogWrites';
 import { normalizeSiteId } from '@/lib/sites/getSiteById';
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { apiErrorFromDbError, rlsConfigurationHint } from '@/lib/db/errors';
@@ -66,15 +67,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (buildError: any) {
         return res.status(400).json({ message: buildError?.message || 'Invalid blog payload' });
       }
-      const { error } = await supabase.from('blogs').insert([row]);
 
-      if (error) {
-        console.error('Blog insert error:', error);
-        const { status, message } = apiErrorFromDbError(error, 'blog create');
-        return res.status(status).json({ message });
+      const writeResult = await insertBlog(row);
+      if (!writeResult.ok) {
+        const { status, message } = apiErrorFromDbError(writeResult.error, 'blog create');
+        return res.status(status).json({ message: formatBlogWriteError(writeResult.error) || message });
       }
 
-      return res.status(201).json({ success: true });
+      return res.status(201).json({ success: true, id: writeResult.id });
     }
 
     res.setHeader('Allow', ['GET', 'POST']);
