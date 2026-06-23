@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
-import { diagnoseBlogWriteMiss } from '@/lib/blogs/diagnoseWriteMiss';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
-import { updateBlog, deleteBlog, formatBlogWriteError } from '@/lib/blogs/blogWrites';
+import { updateBlog, deleteBlog, formatBlogWriteError, blogWriteHttpStatus } from '@/lib/blogs/blogWrites';
 import { normalizeSiteId } from '@/lib/sites/getSiteById';
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { apiErrorFromDbError, rlsConfigurationHint } from '@/lib/db/errors';
@@ -75,12 +74,13 @@ export default async function handler(
 
       const writeResult = await updateBlog(blogId, siteId, row);
       if (!writeResult.ok) {
-        if (writeResult.error.message?.includes('BLOG_UPDATE_NO_MATCH')) {
-          const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'update');
-          return res.status(diagnosis.status).json({ message: diagnosis.message });
+        const message = formatBlogWriteError(writeResult.error);
+        const httpStatus = blogWriteHttpStatus(writeResult.error);
+        if (httpStatus === 500) {
+          const mapped = apiErrorFromDbError(writeResult.error, 'blog update');
+          return res.status(mapped.status).json({ message: message || mapped.message });
         }
-        const { status, message } = apiErrorFromDbError(writeResult.error, 'blog update');
-        return res.status(status).json({ message: formatBlogWriteError(writeResult.error) || message });
+        return res.status(httpStatus).json({ message });
       }
 
       return res.status(200).json({
@@ -92,11 +92,8 @@ export default async function handler(
     if (req.method === 'DELETE') {
       const writeResult = await deleteBlog(blogId, siteId);
       if (!writeResult.ok) {
-        if (writeResult.error.message?.includes('BLOG_DELETE_NO_MATCH')) {
-          const diagnosis = await diagnoseBlogWriteMiss(blogId, siteId, 'delete');
-          return res.status(diagnosis.status).json({ message: diagnosis.message });
-        }
-        return res.status(500).json({ message: formatBlogWriteError(writeResult.error) });
+        const message = formatBlogWriteError(writeResult.error);
+        return res.status(blogWriteHttpStatus(writeResult.error)).json({ message });
       }
 
       return res.status(200).json({

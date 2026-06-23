@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { buildBlogRow, type BlogBody } from '@/lib/blogs/blogRow';
-import { insertBlog, formatBlogWriteError } from '@/lib/blogs/blogWrites';
+import { insertBlog, formatBlogWriteError, blogWriteHttpStatus } from '@/lib/blogs/blogWrites';
 import { normalizeSiteId } from '@/lib/sites/getSiteById';
 import { supabase, supabaseServiceRoleKeyStatus } from '@/lib/supabase/server';
 import { apiErrorFromDbError, rlsConfigurationHint } from '@/lib/db/errors';
@@ -70,8 +70,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const writeResult = await insertBlog(row);
       if (!writeResult.ok) {
-        const { status, message } = apiErrorFromDbError(writeResult.error, 'blog create');
-        return res.status(status).json({ message: formatBlogWriteError(writeResult.error) || message });
+        const message = formatBlogWriteError(writeResult.error);
+        const httpStatus = blogWriteHttpStatus(writeResult.error);
+        if (httpStatus === 500) {
+          const mapped = apiErrorFromDbError(writeResult.error, 'blog create');
+          return res.status(mapped.status).json({ message: message || mapped.message });
+        }
+        return res.status(httpStatus).json({ message });
       }
 
       return res.status(201).json({ success: true, id: writeResult.id });

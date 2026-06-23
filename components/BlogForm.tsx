@@ -252,12 +252,14 @@ export default function BlogForm({
 
       if (!saveResponse.ok) {
         const err = await saveResponse.json().catch(() => ({}));
+        const errMessage = typeof err?.message === 'string' ? err.message : 'Failed to save blog post';
+        console.error('Blog save failed:', saveResponse.status, errMessage);
         if (saveResponse.status === 409) {
           setSlugError(err.message || 'This slug is already in use for this site.');
           setIsSaving(false);
           return;
         }
-        throw new Error(err.message || 'Failed to save blog post');
+        throw new Error(errMessage);
       }
 
       await router.push(`/sites/${siteId}/blogs`);
