@@ -12,7 +12,7 @@ export type ApiPermissionResult =
 export async function requireApiPermission(
   req: NextApiRequest,
   res: NextApiResponse | undefined,
-  needs: { blogs?: boolean; tasks?: boolean; users?: boolean },
+  needs: { blogs?: boolean; tasks?: boolean; users?: boolean; attendance?: boolean },
 ): Promise<ApiPermissionResult> {
   const ctx = await resolveAdminUserContextFromApi(req, res);
   if (!ctx) {
@@ -37,6 +37,9 @@ export async function requireApiPermission(
   }
   if (needs.users && !permissions.canAccessUserManagement) {
     return { ok: false, status: 403, message: 'You do not have access to user management.' };
+  }
+  if (needs.attendance && !permissions.canManageAttendance && !permissions.isPrimaryAdmin) {
+    return { ok: false, status: 403, message: 'You do not have access to attendance control.' };
   }
 
   return { ok: true, userId, permissions };

@@ -10,6 +10,20 @@ import { reportError } from '@/lib/monitoring';
 
 const MAX_NAME = 120;
 
+function normalizeAvatarUrl(value: unknown): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getAuthUserFromApiRequest(req, res);
   if (!user) {
@@ -26,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       display_name: row?.display_name ?? null,
+      avatar_url: row?.avatar_url ?? null,
       email: user.email ?? null,
     });
   }
@@ -34,6 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body = req.body ?? {};
     const raw = typeof body.display_name === 'string' ? body.display_name.trim() : '';
     const display_name = raw.length > 0 ? raw.slice(0, MAX_NAME) : null;
+    const avatarPatch = normalizeAvatarUrl(body.avatar_url);
 
     const { row: existing, error: readErr } = await fetchAppProfileRow(user.id);
     if (readErr) {
@@ -48,7 +64,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       can_manage_tasks: flags.can_manage_tasks,
       can_administer_tasks: flags.can_administer_tasks,
       can_manage_users: flags.can_manage_users,
-      display_name,
+      can_manage_attendance: flags.can_manage_attendance,
+      display_name: typeof body.display_name === 'string' ? display_name : (existing?.display_name ?? null),
+      avatar_url: avatarPatch !== undefined ? avatarPatch : (existing?.avatar_url ?? null),
     });
 
     if (!result.ok) {
@@ -56,7 +74,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: formatDbError(result.error) });
     }
 
-    return res.status(200).json({ display_name, email: user.email ?? null });
+    const nextDisplayName =
+      typeof body.display_name === 'string' ? display_name : (existing?.display_name ?? null);
+    const nextAvatarUrl = avatarPatch !== undefined ? avatarPatch : (existing?.avatar_url ?? null);
+
+    return res.status(200).json({
+      display_name: nextDisplayName,
+      avatar_url: nextAvatarUrl,
+      email: user.email ?? null,
+    });
   }
 
   res.setHeader('Allow', ['GET', 'PATCH']);

@@ -81,6 +81,23 @@ export function apiErrorFromDbError(
   return { status: 500, message: formatDbError(error) };
 }
 
+/** PostgREST — table/relation not in schema cache (migration not applied). */
+export function isMissingTableError(error: DbErrorLike | null | undefined, tableName?: string): boolean {
+  if (!error) {
+    return false;
+  }
+  if (error.code === 'PGRST205' || error.code === '42P01') {
+    if (!tableName) {
+      return true;
+    }
+    return new RegExp(tableName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(error.message ?? '');
+  }
+  return /could not find the table|relation.*does not exist/i.test(error.message ?? '');
+}
+
+export const ATTENDANCE_SETUP_HINT =
+  'Attendance tables are not set up yet. Run supabase/migrations/20260705100000_attendance_system.sql in the Supabase SQL Editor, then reload.';
+
 export function isMissingColumnError(error: DbErrorLike | null | undefined, columnName: string): boolean {
   if (!error) {
     return false;

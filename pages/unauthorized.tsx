@@ -1,8 +1,8 @@
 import Head from 'next/head';
-import Link from 'next/link';
 import { requireAuthentication } from '@/lib/auth';
 import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
+import OutlineFillButton from '@/components/ui/OutlineFillButton';
 import type { AppPermissions } from '@/lib/permissions/types';
 import type { GetServerSidePropsContext } from 'next';
 
@@ -34,35 +34,26 @@ export default function UnauthorizedPage({ permissions }: { permissions: AppPerm
         )}
         <div className="mt-6 flex flex-wrap gap-3">
           {permissions.canAccessUserManagement && (
-            <Link
-              href="/admin/users"
-              className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
-            >
+            <OutlineFillButton href="/admin/users" className="ui-outline-fill-btn--auto">
               User management
-            </Link>
+            </OutlineFillButton>
           )}
           {permissions.canManageBlogs && (
-            <Link
-              href="/"
-              className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
-            >
+            <OutlineFillButton href="/" className="ui-outline-fill-btn--auto">
               Blog dashboard
-            </Link>
+            </OutlineFillButton>
           )}
           {permissions.canManageTasks && (
-            <Link
-              href="/tasks"
-              className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
-            >
+            <OutlineFillButton href="/tasks" className="ui-outline-fill-btn--auto">
               Tasks
-            </Link>
+            </OutlineFillButton>
           )}
-          <Link href="/settings" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <OutlineFillButton href="/settings" className="ui-outline-fill-btn--auto">
             Profile settings
-          </Link>
-          <Link href="/login" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          </OutlineFillButton>
+          <OutlineFillButton href="/login" className="ui-outline-fill-btn--auto">
             Sign in again
-          </Link>
+          </OutlineFillButton>
         </div>
       </div>
     </AdminLayout>

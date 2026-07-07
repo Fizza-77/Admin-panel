@@ -11,7 +11,8 @@ import { supabase } from '@/lib/supabase/server';
 import { listBlogsForSite } from '@/lib/blogs/listBlogsForSite';
 import { resolveSitePage } from '@/lib/sites/resolveSitePageProps';
 import DataLoadError from '@/components/ui/DataLoadError';
-import { PlusCircle, Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
+import OutlineFillButton, { PlusIcon, SetupIcon } from '@/components/ui/OutlineFillButton';
+import { Search, Edit2, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Site } from '@/types/site';
 import { reportError } from '@/lib/monitoring';
@@ -161,20 +162,23 @@ export default function SiteBlogsPage({
             <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{site.site_key}</span>.
           </p>
         </div>
-        <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-3">
-          <Link
+        <div className="flex w-full md:w-auto max-w-full flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
+          <OutlineFillButton
             href={setupUnlockHref(`/sites/${site.id}/setup`)}
-            className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-3 sm:px-4 rounded-lg border border-indigo-200 transition text-sm"
+            icon={<SetupIcon />}
+            fullWidth={false}
+            className="flex-1 sm:flex-initial min-w-0"
           >
             Setup
-          </Link>
-          <Link
+          </OutlineFillButton>
+          <OutlineFillButton
             href={`/sites/${site.id}/blogs/create`}
-            className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 sm:px-4 rounded-lg transition shadow-sm text-sm"
+            icon={<PlusIcon />}
+            fullWidth={false}
+            className="flex-1 sm:flex-initial min-w-0"
           >
-            <PlusCircle className="w-5 h-5" />
             Add Blog
-          </Link>
+          </OutlineFillButton>
         </div>
       </div>
 

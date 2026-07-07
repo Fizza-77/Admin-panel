@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { AppPermissions } from '@/lib/permissions/types';
-import { Loader2, Trash2, UserPlus } from 'lucide-react';
+import { Trash2, UserPlus } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
+import { useRouteNavigation } from '@/lib/ui/routeNavigation';
 import { format } from 'date-fns';
 import { reportError } from '@/lib/monitoring';
 
@@ -17,6 +20,7 @@ export type AdminUserRow = {
   can_manage_tasks: boolean;
   can_administer_tasks: boolean;
   can_manage_users: boolean;
+  can_manage_attendance: boolean;
 };
 
 export const getServerSideProps = requireAuthentication(
@@ -37,6 +41,7 @@ function formatDt(iso: string | null | undefined) {
 const USERS_PAGE_SIZE = 50;
 
 export default function AdminUsersPage({ permissions }: { permissions: AppPermissions }) {
+  const { isNavigating } = useRouteNavigation();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -50,6 +55,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
   const [newPassword, setNewPassword] = useState('');
   const [newBlogs, setNewBlogs] = useState(true);
   const [newTaskAdmin, setNewTaskAdmin] = useState(false);
+  const [newAttendanceControl, setNewAttendanceControl] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
 
   const isPrimaryOwnerRow = (row: AdminUserRow) =>
@@ -102,6 +108,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           can_manage_blogs: row.can_manage_blogs,
           can_administer_tasks: row.can_administer_tasks,
           can_manage_users: row.can_manage_users,
+          can_manage_attendance: row.can_manage_attendance,
           display_name: (row.display_name ?? '').trim() || null,
         }),
       });
@@ -165,6 +172,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           display_name: newDisplayName.trim() || null,
           can_manage_blogs: newBlogs,
           can_administer_tasks: newTaskAdmin,
+          can_manage_attendance: newAttendanceControl,
           can_manage_users: false,
         }),
       });
@@ -177,6 +185,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       setNewPassword('');
       setNewBlogs(true);
       setNewTaskAdmin(false);
+      setNewAttendanceControl(false);
       setNewDisplayName('');
       setPage(1);
       await load(1);
@@ -188,8 +197,18 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
     }
   };
 
+  const overlayMessages =
+    creating ? ['Creating user…', 'Setting up account access…', 'Almost done…']
+    : savingId ? ['Saving user…', 'Updating permissions…', 'Almost done…']
+    : deletingId ? ['Deleting user…', 'Removing access…', 'Almost done…']
+    : loading ? ['Loading users…', 'Fetching team accounts…', 'Almost ready…']
+    : null;
+
   return (
     <AdminLayout permissions={permissions}>
+      {overlayMessages && !isNavigating && (
+        <LoadingOverlay messages={overlayMessages} rotateIntervalMs={3000} />
+      )}
       <Head>
         <title>User management - Skyen Admin</title>
       </Head>
@@ -200,7 +219,8 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           <p className="mt-1 text-sm text-slate-600">
             Every user gets basic <span className="font-medium">Tasks</span> access automatically (view assigned tasks,
             update status). Enable <span className="font-medium">Tasks admin</span> only for people who should create
-            tasks, edit any task, and manage tags. User management stays with the primary admin email.
+            tasks, edit any task, and manage tags. Enable <span className="font-medium">Attendance control</span> for
+            users who should mark daily attendance for the whole team. User management stays with the primary admin email.
           </p>
         </div>
 
@@ -256,20 +276,26 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                 <input type="checkbox" checked={newTaskAdmin} onChange={(e) => setNewTaskAdmin(e.target.checked)} />
                 Tasks admin
               </label>
+              <label
+                className="inline-flex items-center gap-2 text-sm"
+                title="Mark daily attendance for all team members"
+              >
+                <input
+                  type="checkbox"
+                  checked={newAttendanceControl}
+                  onChange={(e) => setNewAttendanceControl(e.target.checked)}
+                />
+                Attendance control
+              </label>
               <span className="text-xs text-slate-500 sm:col-span-2 lg:col-span-4">
                 Basic task access is enabled for all new users.
               </span>
             </div>
             {formError && <p className="text-sm text-red-600 sm:col-span-2 lg:col-span-4">{formError}</p>}
             <div className="sm:col-span-2 lg:col-span-4">
-              <button
-                type="submit"
-                disabled={creating}
-                className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:opacity-60"
-              >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <OutlineFillButtonAction type="submit" disabled={creating} icon={<UserPlus className="h-[15px] w-[15px]" aria-hidden />}>
                 Create user
-              </button>
+              </OutlineFillButtonAction>
             </div>
           </form>
         </section>
@@ -309,11 +335,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
               </button>
             </div>
           </div>
-          {loading ? (
-            <div className="flex justify-center py-16 text-slate-500">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : loadError ? (
+          {loadError ? (
             <p className="p-5 text-red-600">{loadError}</p>
           ) : (
             <div className="overflow-x-auto">
@@ -327,6 +349,9 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Blogs</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Manage all tasks">
                       Tasks admin
+                    </th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Mark attendance for everyone">
+                      Attendance control
                     </th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Action</th>
                   </tr>
@@ -373,16 +398,26 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                             title="Tasks admin: create tasks, edit any task, manage tags"
                           />
                         </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={primaryLocked ? true : row.can_manage_attendance}
+                            disabled={primaryLocked}
+                            onChange={(e) => updateLocalRow(row.id, { can_manage_attendance: e.target.checked })}
+                            aria-label="Attendance control — mark attendance for everyone"
+                            title="Attendance control: mark daily attendance for all team members"
+                          />
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center gap-2">
-                            <button
+                            <OutlineFillButtonAction
                               type="button"
                               onClick={() => void saveRow(row)}
                               disabled={savingId === row.id || deletingId === row.id}
-                              className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-900 hover:bg-cyan-100 disabled:opacity-50"
+                              className="!text-xs !min-h-8"
                             >
                               {savingId === row.id ? 'Saving…' : 'Save'}
-                            </button>
+                            </OutlineFillButtonAction>
                             <button
                               type="button"
                               onClick={() => void deleteRow(row)}
@@ -394,11 +429,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                               }
                               className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 hover:bg-red-100 disabled:opacity-50"
                             >
-                              {deletingId === row.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
+                              <Trash2 className="h-3.5 w-3.5" />
                               Delete
                             </button>
                           </div>

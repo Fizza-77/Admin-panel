@@ -10,11 +10,12 @@ import {
   ArrowRight,
   CheckSquare,
   LayoutDashboard,
-  Loader2,
   Lock,
   Mail,
   Shield,
 } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import { saveAdminClientSession } from '@/lib/client/adminSession';
 import { reportError } from '@/lib/monitoring';
 
@@ -82,6 +83,8 @@ export default function Login() {
         <title>Sign in · Skyen Systems</title>
         <meta name="description" content="Sign in to the Skyen Systems Admin Panel" />
       </Head>
+
+      {isLoading && <LoadingOverlay label="Signing in…" />}
 
       <div className="relative flex min-h-screen overflow-hidden bg-zinc-950">
         {/* Ambient background */}
@@ -243,24 +246,14 @@ export default function Login() {
                   )}
                 </div>
 
-                <button
+                <OutlineFillButtonAction
                   type="submit"
                   disabled={isLoading}
-                  className="group relative mt-2 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 transition hover:from-indigo-400 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:pointer-events-none disabled:opacity-60"
+                  className="!w-full mt-2 ui-outline-fill-btn--inverse"
+                  icon={<ArrowRight className="h-[15px] w-[15px]" aria-hidden />}
                 >
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 transition group-hover:opacity-100" aria-hidden />
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                      Signing in…
-                    </>
-                  ) : (
-                    <>
-                      Sign in
-                      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
-                    </>
-                  )}
-                </button>
+                  {isLoading ? 'Signing in…' : 'Sign in'}
+                </OutlineFillButtonAction>
               </form>
 
               <p className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-zinc-500">

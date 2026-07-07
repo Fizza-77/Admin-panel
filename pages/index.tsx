@@ -33,6 +33,9 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
     if (permissions.canAccessUserManagement) {
       return { redirect: { destination: '/admin/users', permanent: false } };
     }
+    if (permissions.canManageAttendance) {
+      return { redirect: { destination: '/attendance', permanent: false } };
+    }
     return { redirect: { destination: '/unauthorized', permanent: false } };
   }
 

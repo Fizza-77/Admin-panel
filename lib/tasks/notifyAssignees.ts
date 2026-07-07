@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/server';
 import { reportError } from '@/lib/monitoring';
+import { sendTaskAssignmentEmails } from '@/lib/email/taskAssignmentEmail';
 
 export async function notifyTaskAssignees(params: {
   taskId: string;
@@ -27,5 +28,17 @@ export async function notifyTaskAssignees(params: {
   const { error } = await supabase.from('task_notifications').insert(rows);
   if (error) {
     reportError(error, { source: 'notifyTaskAssignees.insert', taskId, count: recipients.length });
+  }
+
+  try {
+    await sendTaskAssignmentEmails({
+      taskId,
+      taskTitle,
+      assigneeIds: recipients,
+      actorUserId,
+      isNewTask,
+    });
+  } catch (emailError) {
+    reportError(emailError, { source: 'notifyTaskAssignees.email', taskId, count: recipients.length });
   }
 }

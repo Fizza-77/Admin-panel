@@ -1,9 +1,9 @@
 import Head from 'next/head';
-import Link from 'next/link';
 import { requireAuthentication } from '@/lib/auth';
 import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import DataLoadError from '@/components/ui/DataLoadError';
+import OutlineFillButton from '@/components/ui/OutlineFillButton';
 import type { AppPermissions } from '@/lib/permissions/types';
 import type { GetServerSidePropsContext } from 'next';
 
@@ -88,25 +88,16 @@ export default function ProfileErrorPage({
           </ul>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link
-            href="/settings"
-            className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
-          >
+          <OutlineFillButton href="/settings" className="ui-outline-fill-btn--auto">
             Open profile settings
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
+          </OutlineFillButton>
+          <OutlineFillButton href="/login" className="ui-outline-fill-btn--auto">
             Sign in again
-          </Link>
+          </OutlineFillButton>
           {permissions.canAccessUserManagement && (
-            <Link
-              href="/admin/users"
-              className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
+            <OutlineFillButton href="/admin/users" className="ui-outline-fill-btn--auto">
               User management
-            </Link>
+            </OutlineFillButton>
           )}
         </div>
       </div>

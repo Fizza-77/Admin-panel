@@ -7,29 +7,15 @@ import { assigneeStatusOnly, canUserFullyManageTask, canUserViewTask } from '@/l
 import { isTaskStatus } from '@/lib/tasks/taskStatus';
 import { isTaskVisibility } from '@/lib/tasks/taskVisibility';
 import type { TaskWithRelations } from '@/lib/tasks/taskRow';
+import { mapTaskRow, TASK_SELECT_WITH_RELATIONS } from '@/lib/tasks/mapTaskRow';
+import { parseAttachmentInput, type PendingTaskAttachment } from '@/lib/tasks/taskAttachments';
+import { replaceTaskAttachments } from '@/lib/tasks/taskAttachmentDb';
 import { notifyTaskAssignees } from '@/lib/tasks/notifyAssignees';
-
-function mapTaskRow(raw: any): TaskWithRelations {
-  const assigneeRows = raw.task_assignees as { user_id: string }[] | undefined;
-  const tagRows = raw.task_tag_links as { tag_id: string }[] | undefined;
-  const { task_assignees: _a, task_tag_links: _t, ...rest } = raw;
-  return {
-    ...rest,
-    assignee_ids: Array.isArray(assigneeRows) ? assigneeRows.map((r) => r.user_id) : [],
-    tag_ids: Array.isArray(tagRows) ? tagRows.map((r) => r.tag_id) : [],
-  };
-}
 
 async function loadTaskWithRelations(taskId: string) {
   const { data, error } = await supabase
     .from('tasks')
-    .select(
-      `
-      *,
-      task_assignees ( user_id ),
-      task_tag_links ( tag_id )
-    `,
-    )
+    .select(TASK_SELECT_WITH_RELATIONS)
     .eq('id', taskId)
     .maybeSingle();
 
@@ -159,6 +145,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (te) {
           reportError(te, { source: 'api/tasks PATCH tags' });
         }
+      }
+    }
+
+    if (Array.isArray(body.attachment_ids_to_keep) || Array.isArray(body.new_attachments)) {
+      const keepIds = Array.isArray(body.attachment_ids_to_keep)
+        ? body.attachment_ids_to_keep.filter((x: unknown): x is string => typeof x === 'string')
+        : loaded.attachments.map((a) => a.id);
+      const newOnes = Array.isArray(body.new_attachments)
+        ? body.new_attachments.map(parseAttachmentInput).filter((a): a is PendingTaskAttachment => a !== null)
+        : [];
+      try {
+        await replaceTaskAttachments(taskId, userId, keepIds, newOnes);
+      } catch (e) {
+        reportError(e, { source: 'api/tasks PATCH attachments' });
+        return res.status(500).json({ message: e instanceof Error ? e.message : 'Failed to update attachments' });
       }
     }
 

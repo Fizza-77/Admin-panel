@@ -10,7 +10,9 @@ import { listCategoriesForSite } from '@/lib/categories/listCategoriesForSite';
 import DataLoadError from '@/components/ui/DataLoadError';
 import type { Site } from '@/types/site';
 import type { BlogCategory } from '@/types/blogCategory';
-import { Loader2, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import { reportError } from '@/lib/monitoring';
 
 import type { AppPermissions } from '@/lib/permissions/types';
@@ -156,6 +158,8 @@ export default function SiteCategoriesPage({
 
   return (
     <AdminLayout permissions={permissions}>
+      {saving && <LoadingOverlay label="Adding category…" />}
+      {deletingId && <LoadingOverlay label="Deleting category…" />}
       <Head>
         <title>Blog categories - {site.name || site.site_key} | Admin</title>
       </Head>
@@ -206,11 +210,7 @@ export default function SiteCategoriesPage({
                     className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
                     title="Delete"
                   >
-                    {deletingId === c.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </li>
               ))}
@@ -263,14 +263,9 @@ export default function SiteCategoriesPage({
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
               />
             </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 rounded-lg text-sm disabled:opacity-50 flex justify-center items-center gap-2"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            <OutlineFillButtonAction type="submit" disabled={saving} className="!w-full">
               Add category
-            </button>
+            </OutlineFillButtonAction>
           </form>
         </div>
       </div>

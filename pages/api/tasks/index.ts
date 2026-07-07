@@ -8,17 +8,9 @@ import { getTaskIdsAssignedToUser, orFilterForVisibleTasks } from '@/lib/tasks/t
 import { isTaskStatus } from '@/lib/tasks/taskStatus';
 import { isTaskVisibility } from '@/lib/tasks/taskVisibility';
 import type { TaskWithRelations } from '@/lib/tasks/taskRow';
-
-function mapTaskRow(raw: any): TaskWithRelations {
-  const assigneeRows = raw.task_assignees as { user_id: string }[] | undefined;
-  const tagRows = raw.task_tag_links as { tag_id: string }[] | undefined;
-  const { task_assignees: _a, task_tag_links: _t, ...rest } = raw;
-  return {
-    ...rest,
-    assignee_ids: Array.isArray(assigneeRows) ? assigneeRows.map((r) => r.user_id) : [],
-    tag_ids: Array.isArray(tagRows) ? tagRows.map((r) => r.tag_id) : [],
-  };
-}
+import { mapTaskRow, TASK_SELECT_WITH_RELATIONS } from '@/lib/tasks/mapTaskRow';
+import { parseAttachmentInput, type PendingTaskAttachment } from '@/lib/tasks/taskAttachments';
+import { insertTaskAttachments, replaceTaskAttachments } from '@/lib/tasks/taskAttachmentDb';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const auth = await requireApiPermission(req, res, { tasks: true });
@@ -51,13 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let query = supabase
       .from('tasks')
-      .select(
-        `
-        *,
-        task_assignees ( user_id ),
-        task_tag_links ( tag_id )
-      `,
-      )
+      .select(TASK_SELECT_WITH_RELATIONS)
       .order('updated_at', { ascending: false });
 
     if (!isSuper) {
@@ -134,6 +120,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? body.assignee_ids.filter((x: unknown) => typeof x === 'string')
       : [];
     const tag_ids = Array.isArray(body.tag_ids) ? body.tag_ids.filter((x: unknown) => typeof x === 'string') : [];
+    const new_attachments = Array.isArray(body.attachments)
+      ? body.attachments.map(parseAttachmentInput).filter((a): a is PendingTaskAttachment => a !== null)
+      : [];
 
     if (!title) {
       return res.status(400).json({ message: 'Title is required' });
@@ -184,15 +173,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    if (new_attachments.length > 0) {
+      try {
+        await insertTaskAttachments(taskId, userId, new_attachments);
+      } catch (e) {
+        reportError(e, { source: 'api/tasks POST attachments' });
+      }
+    }
+
     const { data: full, error: fullErr } = await supabase
       .from('tasks')
-      .select(
-        `
-        *,
-        task_assignees ( user_id ),
-        task_tag_links ( tag_id )
-      `,
-      )
+      .select(TASK_SELECT_WITH_RELATIONS)
       .eq('id', taskId)
       .single();
 

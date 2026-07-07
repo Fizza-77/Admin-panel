@@ -11,8 +11,12 @@ export type AppPermissions = {
   canAccessUserManagement: boolean;
   /** Create task tags: primary admin when enforced; otherwise users with Tasks (full) access. */
   canCreateTaskTags: boolean;
+  /** Mark attendance for all team members. */
+  canManageAttendance: boolean;
   /** From `app_profiles.display_name`; UI falls back to email when null */
   displayName?: string | null;
+  /** Cloudinary profile photo; UI falls back to initials when null */
+  avatarUrl?: string | null;
   /** Signed-in user email (session) for header / settings */
   accountEmail?: string | null;
   /**

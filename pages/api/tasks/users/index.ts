@@ -46,18 +46,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const ids = raw.map((u) => u.id);
-  let nameById = new Map<string, string | null>();
+  let nameById = new Map<string, { display_name: string | null; avatar_url: string | null }>();
   if (ids.length > 0) {
     const { data: profiles, error: pErr } = await supabase
       .from('app_profiles')
-      .select('user_id, display_name')
+      .select('user_id, display_name, avatar_url')
       .in('user_id', ids);
     if (pErr) {
       reportError(pErr, { source: 'api/tasks/users profiles' });
       return res.status(500).json({ message: 'Failed to load user display names', detail: pErr.message });
     }
     if (profiles) {
-      nameById = new Map(profiles.map((p) => [p.user_id, p.display_name]));
+      nameById = new Map(
+        profiles.map((p) => [
+          p.user_id,
+          {
+            display_name: p.display_name,
+            avatar_url: typeof p.avatar_url === 'string' ? p.avatar_url : null,
+          },
+        ]),
+      );
     }
   }
 
@@ -65,11 +73,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const users = raw
     .filter((u) => includePrimary || !isPrimaryAdminEmail(u.email))
-    .map((u) => ({
+    .map((u) => {
+      const profile = nameById.get(u.id);
+      return {
       id: u.id,
       email: u.email,
-      display_name: nameById.get(u.id) ?? null,
-    }));
+      display_name: profile?.display_name ?? null,
+      avatar_url: profile?.avatar_url ?? null,
+    };
+    });
 
   return res.status(200).json({ users });
 }

@@ -14,11 +14,13 @@ export type AppProfileRow = {
   can_manage_tasks: boolean;
   can_administer_tasks: boolean;
   can_manage_users: boolean;
+  can_manage_attendance: boolean;
   display_name: string | null;
+  avatar_url: string | null;
 };
 
 const PROFILE_COLUMNS =
-  'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, display_name';
+  'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, can_manage_attendance, display_name, avatar_url';
 
 export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow {
   const can_manage_users =
@@ -33,7 +35,12 @@ export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow
     can_manage_tasks: Boolean(raw.can_manage_tasks) || legacyAdminister,
     can_administer_tasks: legacyAdminister,
     can_manage_users,
+    can_manage_attendance:
+      raw.can_manage_attendance !== null && raw.can_manage_attendance !== undefined
+        ? Boolean(raw.can_manage_attendance)
+        : false,
     display_name: typeof raw.display_name === 'string' ? raw.display_name : null,
+    avatar_url: typeof raw.avatar_url === 'string' ? raw.avatar_url : null,
   };
 }
 
@@ -50,7 +57,9 @@ export type AppProfileUpsertInput = {
   can_manage_tasks: boolean;
   can_administer_tasks: boolean;
   can_manage_users: boolean;
+  can_manage_attendance: boolean;
   display_name: string | null;
+  avatar_url: string | null;
 };
 
 export const DEFAULT_APP_PROFILE_FLAGS = {
@@ -58,6 +67,7 @@ export const DEFAULT_APP_PROFILE_FLAGS = {
   can_manage_tasks: true,
   can_administer_tasks: false,
   can_manage_users: false,
+  can_manage_attendance: false,
 } as const;
 
 export const FULL_ACCESS_PROFILE_FLAGS = {
@@ -65,6 +75,7 @@ export const FULL_ACCESS_PROFILE_FLAGS = {
   can_manage_tasks: true,
   can_administer_tasks: true,
   can_manage_users: true,
+  can_manage_attendance: true,
 } as const;
 
 function enrichDbError(error: DbErrorLike): DbErrorLike {
@@ -228,7 +239,9 @@ async function upsertAppProfileRowViaRpc(input: AppProfileUpsertInput): Promise<
     p_can_manage_tasks: input.can_manage_tasks,
     p_can_administer_tasks: input.can_administer_tasks,
     p_can_manage_users: input.can_manage_users,
+    p_can_manage_attendance: input.can_manage_attendance,
     p_display_name: input.display_name,
+    p_avatar_url: input.avatar_url,
   });
   if (!error) {
     return { ok: true };

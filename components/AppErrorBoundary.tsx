@@ -1,5 +1,6 @@
 import React from 'react';
 import { reportError } from '@/lib/monitoring';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 
 type Props = {
   children: React.ReactNode;
@@ -41,13 +42,9 @@ export default class AppErrorBoundary extends React.Component<Props, State> {
             <p className="mt-2 text-sm text-slate-600">
               The page hit an unexpected error. The issue has been logged. You can retry safely.
             </p>
-            <button
-              type="button"
-              onClick={this.onReload}
-              className="mt-6 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
+            <OutlineFillButtonAction type="button" onClick={this.onReload} className="mt-6">
               Reload page
-            </button>
+            </OutlineFillButtonAction>
           </div>
         </div>
       );

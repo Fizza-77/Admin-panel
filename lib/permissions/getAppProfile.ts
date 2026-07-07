@@ -49,7 +49,7 @@ export type AppProfileResult = {
   loadError: string | null;
 };
 
-function primaryAdminPermissions(displayName: string | null = null): AppPermissions {
+function primaryAdminPermissions(displayName: string | null = null, avatarUrl: string | null = null): AppPermissions {
   return {
     canManageBlogs: true,
     canManageTasks: true,
@@ -58,14 +58,16 @@ function primaryAdminPermissions(displayName: string | null = null): AppPermissi
     isPrimaryAdmin: true,
     canAccessUserManagement: true,
     canCreateTaskTags: true,
+    canManageAttendance: true,
     displayName,
+    avatarUrl,
     profileLoadError: null,
   };
 }
 
 function rowToPermissions(row: AppProfileRow, email: string | null | undefined): AppPermissions {
   if (isPrimaryAdminEmail(email)) {
-    return { ...primaryAdminPermissions(row.display_name), accountEmail: email?.trim() ?? null };
+    return { ...primaryAdminPermissions(row.display_name, row.avatar_url), accountEmail: email?.trim() ?? null };
   }
 
   const administer = row.can_administer_tasks;
@@ -79,7 +81,9 @@ function rowToPermissions(row: AppProfileRow, email: string | null | undefined):
     isPrimaryAdmin: false,
     canAccessUserManagement: isPrimaryAdminEnforced() ? false : row.can_manage_users,
     canCreateTaskTags: isPrimaryAdminEnforced() ? false : administer,
+    canManageAttendance: row.can_manage_attendance,
     displayName: row.display_name ?? null,
+    avatarUrl: row.avatar_url ?? null,
     profileLoadError: null,
   };
 }
@@ -88,7 +92,7 @@ function withAccountEmail(perms: AppPermissions, email: string | null | undefine
   const primary = isPrimaryAdminEmail(email);
   if (primary) {
     return {
-      ...primaryAdminPermissions(perms.displayName),
+      ...primaryAdminPermissions(perms.displayName, perms.avatarUrl ?? null),
       accountEmail: email?.trim() ?? null,
       profileLoadError: perms.profileLoadError ?? null,
     };
@@ -125,6 +129,7 @@ function permissionsWithLoadError(
       isPrimaryAdmin: false,
       canAccessUserManagement: false,
       canCreateTaskTags: false,
+      canManageAttendance: false,
       displayName,
       profileLoadError: loadError,
     },
@@ -176,14 +181,18 @@ async function ensureProfileRowForUser(
         can_manage_tasks: FULL_ACCESS_PROFILE_FLAGS.can_manage_tasks,
         can_administer_tasks: FULL_ACCESS_PROFILE_FLAGS.can_administer_tasks,
         can_manage_users: FULL_ACCESS_PROFILE_FLAGS.can_manage_users,
+        can_manage_attendance: FULL_ACCESS_PROFILE_FLAGS.can_manage_attendance,
         display_name: null,
+        avatar_url: null,
       }
     : {
         can_manage_blogs: DEFAULT_APP_PROFILE_FLAGS.can_manage_blogs,
         can_manage_tasks: DEFAULT_APP_PROFILE_FLAGS.can_manage_tasks,
         can_administer_tasks: DEFAULT_APP_PROFILE_FLAGS.can_administer_tasks,
         can_manage_users: DEFAULT_APP_PROFILE_FLAGS.can_manage_users,
+        can_manage_attendance: DEFAULT_APP_PROFILE_FLAGS.can_manage_attendance,
         display_name: null,
+        avatar_url: null,
       };
 
   if (refetch.error) {

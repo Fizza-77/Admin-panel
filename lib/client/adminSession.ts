@@ -9,6 +9,26 @@ export type AdminClientSession = {
 };
 
 export const ADMIN_SESSION_STORAGE_KEY = 'skyen_admin_session_v1';
+const LOGGING_OUT_STORAGE_KEY = 'skyen_logging_out_v1';
+
+export function markLoggingOut(): void {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(LOGGING_OUT_STORAGE_KEY, '1');
+  }
+}
+
+export function peekLoggingOut(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return sessionStorage.getItem(LOGGING_OUT_STORAGE_KEY) === '1';
+}
+
+export function clearLoggingOut(): void {
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(LOGGING_OUT_STORAGE_KEY);
+  }
+}
 
 export function pickBestPermissions(
   primary?: AppPermissions | null,
@@ -42,6 +62,7 @@ function isAppPermissions(value: unknown): value is AppPermissions {
     typeof p.canManageTasks === 'boolean' &&
     typeof p.canAdministerTasks === 'boolean' &&
     typeof p.canManageUsers === 'boolean' &&
+    typeof p.canManageAttendance === 'boolean' &&
     typeof p.isPrimaryAdmin === 'boolean'
   );
 }

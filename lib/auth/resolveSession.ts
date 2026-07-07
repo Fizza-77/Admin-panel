@@ -19,6 +19,22 @@ function isStaleRefreshError(error: unknown): boolean {
   return /invalid refresh token|refresh token not found|already used/i.test(message);
 }
 
+function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  const cause = (error as Error & { cause?: { code?: string } }).cause;
+  return (
+    message.includes('fetch failed') ||
+    message.includes('network') ||
+    message.includes('connect timeout') ||
+    cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+    cause?.code === 'ECONNREFUSED' ||
+    cause?.code === 'ENOTFOUND'
+  );
+}
+
 function clearSessionCookies(target: NextApiResponse | GetServerSidePropsContext) {
   if ('setHeader' in target && typeof target.setHeader === 'function') {
     clearSessionCookiesOnResponse(target as NextApiResponse);
@@ -27,8 +43,22 @@ function clearSessionCookies(target: NextApiResponse | GetServerSidePropsContext
   }
 }
 
+async function safeGetUser(accessToken: string) {
+  try {
+    return await supabase.auth.getUser(accessToken);
+  } catch (error) {
+    reportError(error, { source: 'resolveAdminSession.getUser', network: isNetworkError(error) });
+    return { data: { user: null }, error: error as Error };
+  }
+}
+
 async function refreshWithToken(refreshToken: string) {
-  return supabase.auth.refreshSession({ refresh_token: refreshToken });
+  try {
+    return await supabase.auth.refreshSession({ refresh_token: refreshToken });
+  } catch (error) {
+    reportError(error, { source: 'resolveAdminSession.refresh', network: isNetworkError(error) });
+    return { data: { session: null, user: null }, error: error as Error };
+  }
 }
 
 /**
@@ -47,7 +77,7 @@ export async function resolveAdminSession(
   }
 
   if (accessToken) {
-    const { data, error } = await supabase.auth.getUser(accessToken);
+    const { data, error } = await safeGetUser(accessToken);
     if (!error && data.user) {
       if (writeTarget && refreshToken) {
         applySessionCookies(writeTarget, accessToken, refreshToken);
@@ -63,7 +93,7 @@ export async function resolveAdminSession(
 
   const { data, error } = await refreshWithToken(refreshToken!);
   if (error) {
-    if (!isStaleRefreshError(error)) {
+    if (!isStaleRefreshError(error) && !isNetworkError(error)) {
       reportError(error, { source: 'resolveAdminSession.refresh' });
     }
     if (writeTarget) {

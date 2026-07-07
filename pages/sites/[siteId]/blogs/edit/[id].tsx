@@ -4,7 +4,7 @@ import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import BlogForm from '@/components/BlogForm';
 import { supabase } from '@/lib/supabase/server';
-import { Loader2 } from 'lucide-react';
+import { LoadingCenter } from '@/components/ui/Spinner';
 import type { Site } from '@/types/site';
 import type { AppPermissions } from '@/lib/permissions/types';
 
@@ -64,9 +64,7 @@ export default function EditSiteBlog({ site, blog, permissions }: EditSiteBlogPa
   if (!blog || !site?.id) {
     return (
       <AdminLayout permissions={permissions}>
-        <div className="flex justify-center items-center h-full">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-        </div>
+        <LoadingCenter label="Loading blog…" />
       </AdminLayout>
     );
   }

@@ -2,6 +2,8 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import { requireAuthentication, requirePermission, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { reportError } from '@/lib/monitoring';
@@ -138,6 +140,7 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
 
   return (
     <AdminLayout permissions={permissions}>
+      {isSaving && <LoadingOverlay label="Connecting site…" />}
       <Head>
         <title>Connect Site - Skyen Blog Admin</title>
       </Head>
@@ -179,14 +182,14 @@ export async function getBlogsBySiteKey(supabase, siteKey) {
             `site_key` should stay stable forever (e.g. `studiely`, `skyen-solutions`).
           </p>
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <button
+            <OutlineFillButtonAction
               type="button"
               onClick={onCreateSite}
               disabled={isSaving}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              className="!w-full sm:!w-auto"
             >
               {isSaving ? 'Connecting...' : 'Connect site'}
-            </button>
+            </OutlineFillButtonAction>
             {success && <p className="text-sm text-green-700">{success}</p>}
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>

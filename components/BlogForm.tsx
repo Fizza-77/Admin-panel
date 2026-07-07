@@ -4,13 +4,16 @@ import { useForm, Controller } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import ImageUploader from './ImageUploader';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { useRouteNavigation } from '@/lib/ui/routeNavigation';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), {
   ssr: false,
-  loading: () => <div className="h-[300px] w-full bg-gray-50 animate-pulse rounded-xl border border-gray-200" />
+  loading: () => <div className="blog-editor-rte-skeleton" aria-hidden />,
 });
 
-import { Loader2, Save, Send } from 'lucide-react';
+import { Save, Send, ArrowLeft } from 'lucide-react';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import { reportError } from '@/lib/monitoring';
 import { setupUnlockHref } from '@/lib/setup';
 import { faqSchemaToInput } from '@/lib/blogs/faqSchema';
@@ -42,13 +45,14 @@ export default function BlogForm({
   siteName,
 }: BlogFormProps) {
   const router = useRouter();
+  const { isNavigating } = useRouteNavigation();
   const [isSaving, setIsSaving] = useState(false);
   const [saveIntent, setSaveIntent] = useState<'draft' | 'published'>(
     initialData?.status === 'draft' ? 'draft' : 'published',
   );
   const [slugError, setSlugError] = useState('');
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [categoriesOrphaned, setCategoriesOrphaned] = useState(false);
   const [categoriesWarning, setCategoriesWarning] = useState<string | null>(null);
@@ -281,43 +285,61 @@ export default function BlogForm({
     handleSubmit((data) => onSubmit(data, status))();
   };
 
+  const overlayMessages = isSaving
+    ? [
+        saveIntent === 'draft' ? 'Saving draft…' : 'Publishing…',
+        'Syncing with the database…',
+        'Almost done…',
+      ]
+    : !isNavigating && categoriesLoading
+      ? ['Loading categories…', 'Fetching site categories…', 'Almost ready…']
+      : null;
+
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit(data, 'published'))} className="space-y-6 sm:space-y-8 w-full max-w-5xl">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl shadow-sm tracking-wide sticky top-0 z-10 border border-gray-200 border-b">
-        <div className="flex items-center gap-4">
+    <>
+      {overlayMessages && <LoadingOverlay messages={overlayMessages} rotateIntervalMs={3000} />}
+    <form onSubmit={handleSubmit((data) => onSubmit(data, 'published'))} className="blog-editor-root space-y-6 sm:space-y-8 w-full max-w-5xl">
+      <div className="blog-editor-toolbar">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            href={`/sites/${siteId}/blogs`}
+            className="blog-editor-back"
+            aria-label="Back to blogs"
+            title="Back to blogs"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </Link>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
+            <h1 className="blog-editor-toolbar-title">{isEdit ? 'Edit Blog Post' : 'Create New Blog'}</h1>
             {siteName && (
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Website: <span className="font-semibold text-gray-800">{siteName}</span>
+              <p className="blog-editor-toolbar-meta">
+                Website: <strong>{siteName}</strong>
               </p>
             )}
           </div>
           {initialData?.status === 'draft' && (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-              Draft
-            </span>
+            <span className="blog-editor-badge blog-editor-badge--draft">Draft</span>
           )}
         </div>
         <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
-          <button
+          <OutlineFillButtonAction
             type="button"
             disabled={isSaving || categoriesLoading}
             onClick={() => submitWithStatus('draft')}
-            className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
+            className="!w-full sm:!w-auto"
+            icon={<Save className="h-[15px] w-[15px]" aria-hidden />}
           >
-            {isSaving && saveIntent === 'draft' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
             {isSaving && saveIntent === 'draft' ? 'Saving Draft...' : 'Save Draft'}
-          </button>
-          <button
+          </OutlineFillButtonAction>
+          <OutlineFillButtonAction
             type="button"
             disabled={isSaving || categoriesLoading}
             onClick={() => submitWithStatus('published')}
-            className="w-full sm:w-auto min-h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 sm:px-6 rounded-lg transition disabled:opacity-50"
+            className="!w-full sm:!w-auto"
+            icon={<Send className="h-[15px] w-[15px]" aria-hidden />}
           >
-            {isSaving && saveIntent === 'published' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             {isSaving && saveIntent === 'published' ? 'Publishing...' : isEdit ? 'Update & Publish' : 'Publish'}
-          </button>
+          </OutlineFillButtonAction>
         </div>
       </div>
 
@@ -325,34 +347,36 @@ export default function BlogForm({
         
         {/* Main Editor Column */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Blog title * <span className="text-gray-400 font-normal">(headline / name)</span>
+          <div className="blog-editor-panel blog-editor-panel--primary space-y-4">
+            <div className="blog-editor-field">
+              <label className="blog-editor-label">
+                Blog title * <span className="blog-editor-label-hint">(headline / name)</span>
               </label>
               <input
                 type="text"
                 {...register('title', { required: 'Title is required' })}
-                className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border"
+                className="blog-editor-input blog-editor-input--title"
                 placeholder="Enter blog title here..."
               />
-              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message as string}</p>}
+              {errors.title && <p className="blog-editor-error">{errors.title.message as string}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
+            <div className="blog-editor-field">
+              <label className="blog-editor-label">Content *</label>
               <Controller
                 name="content"
                 control={control}
                 rules={{ required: 'Content is required' }}
-                render={({ field }) => <RichTextEditor value={field.value} onChange={field.onChange} />}
+                render={({ field }) => (
+                  <RichTextEditor value={field.value} onChange={field.onChange} />
+                )}
               />
-              {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message as string}</p>}
+              {errors.content && <p className="blog-editor-error">{errors.content.message as string}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category <span className="text-gray-400 font-normal">(optional)</span>
+            <div className="blog-editor-field">
+              <label className="blog-editor-label">
+                Category <span className="blog-editor-label-hint">(optional)</span>
               </label>
               <Controller
                 name="category_id"
@@ -366,9 +390,8 @@ export default function BlogForm({
                     onChange={(e) => field.onChange(e.target.value)}
                     onBlur={field.onBlur}
                     aria-busy={categoriesLoading}
-                    className={`block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm bg-white ${
-                      categoriesLoading ? 'opacity-60 cursor-wait' : ''
-                    }`}
+                    disabled={categoriesLoading}
+                    className={`blog-editor-select ${categoriesLoading ? 'opacity-60 cursor-wait' : ''}`}
                   >
                     <option value="">Select category</option>
                     {(Array.isArray(categories) ? categories : []).map((c) => (
@@ -379,16 +402,13 @@ export default function BlogForm({
                   </select>
                 )}
               />
-              {categoriesLoading && (
-                <p className="mt-1 text-xs text-gray-500">Loading categories…</p>
-              )}
               {categoriesError && (
                 <div className="mt-1 space-y-1">
-                  <p className="text-xs text-red-600">{categoriesError}</p>
+                  <p className="blog-editor-error">{categoriesError}</p>
                   {categoriesOrphaned && siteId && (
                     <Link
                       href={setupUnlockHref(`/sites/${siteId}/recover`)}
-                      className="inline-flex text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                      className="blog-editor-link"
                     >
                       Re-connect this site →
                     </Link>
@@ -396,13 +416,13 @@ export default function BlogForm({
                 </div>
               )}
               {categoriesWarning && (
-                <p className="mt-1 text-xs text-amber-800">{categoriesWarning}</p>
+                <p className="blog-editor-warn">{categoriesWarning}</p>
               )}
               {!categoriesLoading && !categoriesError && !categoriesWarning && categories.length === 0 && (
-                <p className="mt-1 text-xs text-amber-800">
+                <p className="blog-editor-warn">
                   No categories configured for this site.{' '}
                   {siteId && (
-                    <Link href={`/sites/${siteId}/categories`} className="font-medium text-cyan-700 hover:text-cyan-800">
+                    <Link href={`/sites/${siteId}/categories`} className="blog-editor-link">
                       Add categories
                     </Link>
                   )}
@@ -410,202 +430,197 @@ export default function BlogForm({
               )}
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Short description <span className="text-gray-400 font-normal">(schema.org description)</span>
+            <div className="blog-editor-field">
+              <label className="blog-editor-label">
+                Short description <span className="blog-editor-label-hint">(schema.org description)</span>
               </label>
               <textarea
                 {...register('description')}
                 rows={3}
-                className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border"
+                className="blog-editor-textarea"
                 placeholder="Brief summary for blog cards and JSON-LD description..."
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                FAQ schema <span className="text-gray-400 font-normal">(schema.org FAQPage)</span>
+            <div className="blog-editor-field">
+              <label className="blog-editor-label">
+                FAQ schema <span className="blog-editor-label-hint">(schema.org FAQPage)</span>
               </label>
               <textarea
                 {...register('faq_schema')}
                 rows={8}
-                className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border font-mono text-xs"
+                className="blog-editor-textarea blog-editor-textarea--mono"
                 placeholder='Paste FAQPage JSON-LD for this article only, e.g. { "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [...] }'
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Optional. Unique per blog — saved in <code className="rounded bg-gray-100 px-1">faq_schema</code> and
-                fetched on each article page.
-              </p>
             </div>
           </div>
         </div>
 
         {/* Sidebar Column */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-base font-bold text-gray-900 border-b pb-3 mb-4">Publishing & SEO</h3>
+          <div className="blog-editor-panel">
+            <h3 className="blog-editor-panel-title">Publishing & SEO</h3>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">URL Slug *</label>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">URL Slug *</label>
                 <input
                   type="text"
                   {...register('slug', { required: 'Slug is required' })}
-                  className="block w-full border-gray-300 bg-gray-50 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border font-mono text-sm"
+                  className="blog-editor-input blog-editor-input--mono"
                 />
-                {slugError && <p className="mt-1 text-sm text-red-600">{slugError}</p>}
-                {errors.slug && <p className="mt-1 text-sm text-red-600">{errors.slug.message as string}</p>}
+                {slugError && <p className="blog-editor-error">{slugError}</p>}
+                {errors.slug && <p className="blog-editor-error">{errors.slug.message as string}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  datePublished <span className="text-gray-400 font-normal">(required)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  datePublished <span className="blog-editor-label-hint">(required)</span>
                 </label>
                 <input
                   type="date"
                   {...register('date_published', { required: 'datePublished is required' })}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                 />
                 {errors.date_published && (
-                  <p className="mt-1 text-sm text-red-600">{errors.date_published.message as string}</p>
+                  <p className="blog-editor-error">{errors.date_published.message as string}</p>
                 )}
               </div>
 
               {isEdit && initialData?.date_modified && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    dateModified <span className="text-gray-400 font-normal">(auto-updated on save)</span>
+                <div className="blog-editor-field">
+                  <label className="blog-editor-label">
+                    dateModified <span className="blog-editor-label-hint">(auto-updated on save)</span>
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={new Date(initialData.date_modified).toLocaleString()}
-                    className="block w-full border-gray-200 bg-gray-50 rounded-lg py-2.5 px-3 border text-sm text-gray-600"
+                    className="blog-editor-input blog-editor-input--readonly"
                     aria-readonly="true"
                   />
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta title <span className="text-gray-400 font-normal">(alternativeHeadline)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Meta title <span className="blog-editor-label-hint">(alternativeHeadline)</span>
                 </label>
                 <input
                   type="text"
                   {...register('meta_title')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="Defaults to title if empty"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta description <span className="text-gray-400 font-normal">(meta / JSON-LD)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Meta description <span className="blog-editor-label-hint">(meta / JSON-LD)</span>
                 </label>
                 <textarea
                   {...register('meta_description')}
                   rows={2}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2 px-3 border text-sm"
+                  className="blog-editor-textarea"
                   placeholder="SEO description..."
                 />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-base font-bold text-gray-900 border-b pb-3 mb-1">Schema.org (BlogPosting)</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Maps to JSON-LD <code className="text-xs bg-gray-100 px-1 rounded">BlogPosting</code> /{' '}
-              <code className="text-xs bg-gray-100 px-1 rounded">Article</code>. All optional.
+          <div className="blog-editor-panel">
+            <h3 className="blog-editor-panel-title">Schema.org (BlogPosting)</h3>
+            <p className="blog-editor-panel-hint">
+              Maps to JSON-LD <code>BlogPosting</code> / <code>Article</code>. All optional.
             </p>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Author name <span className="text-gray-400 font-normal">(author)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Author name <span className="blog-editor-label-hint">(author)</span>
                 </label>
                 <input
                   type="text"
                   {...register('author_name')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="Jane Doe"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Keywords <span className="text-gray-400 font-normal">(keywords)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Keywords <span className="blog-editor-label-hint">(keywords)</span>
                 </label>
                 <input
                   type="text"
                   {...register('keywords')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="comma, separated, terms"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Language <span className="text-gray-400 font-normal">(inLanguage)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Language <span className="blog-editor-label-hint">(inLanguage)</span>
                 </label>
                 <input
                   type="text"
                   {...register('in_language')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="en-US"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Publisher name <span className="text-gray-400 font-normal">(publisher)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Publisher name <span className="blog-editor-label-hint">(publisher)</span>
                 </label>
                 <input
                   type="text"
                   {...register('publisher_name')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Publisher logo URL <span className="text-gray-400 font-normal">(publisher.logo)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Publisher logo URL <span className="blog-editor-label-hint">(publisher.logo)</span>
                 </label>
                 <input
                   type="url"
                   {...register('publisher_logo_url')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="https://…"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Canonical URL <span className="text-gray-400 font-normal">(url)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  Canonical URL <span className="blog-editor-label-hint">(url)</span>
                 </label>
                 <input
                   type="url"
                   {...register('canonical_url')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="https://yoursite.com/blog/slug"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  mainEntityOfPage <span className="text-gray-400 font-normal">(page @id)</span>
+              <div className="blog-editor-field">
+                <label className="blog-editor-label">
+                  mainEntityOfPage <span className="blog-editor-label-hint">(page @id)</span>
                 </label>
                 <input
                   type="url"
                   {...register('main_entity_of_page')}
-                  className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2.5 px-3 border text-sm"
+                  className="blog-editor-input"
                   placeholder="https://yoursite.com/blog/slug"
                 />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="blog-editor-panel">
              <Controller
               name="cover_image_url"
               control={control}
@@ -621,5 +636,6 @@ export default function BlogForm({
         </div>
       </div>
     </form>
+    </>
   );
 }

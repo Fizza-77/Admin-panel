@@ -1,9 +1,11 @@
 import '@/styles/globals.css';
 import type { AppProps } from 'next/app';
-import { Inter } from 'next/font/google';
+import { Inter, Sora } from 'next/font/google';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
+import ConnectionProvider from '@/components/ConnectionProvider';
+import RouteNavigationProvider from '@/components/RouteNavigationProvider';
 import { reportError } from '@/lib/monitoring';
 import { startAdminSessionMaintenance } from '@/lib/auth/clientSession';
 
@@ -13,8 +15,21 @@ const inter = Inter({
   display: 'swap',
 });
 
+const sora = Sora({
+  subsets: ['latin'],
+  variable: '--font-sora',
+  display: 'swap',
+});
+
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+
+  useEffect(() => {
+    document.documentElement.classList.add(inter.variable, sora.variable);
+    return () => {
+      document.documentElement.classList.remove(inter.variable, sora.variable);
+    };
+  }, []);
 
   useEffect(() => {
     return startAdminSessionMaintenance(router.pathname === '/login');
@@ -52,8 +67,12 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <AppErrorBoundary>
-      <div className={`${inter.variable} font-sans`}>
+      <div className={`${inter.variable} ${sora.variable} font-sans`}>
+      <ConnectionProvider>
+      <RouteNavigationProvider>
         <Component {...pageProps} />
+      </RouteNavigationProvider>
+      </ConnectionProvider>
       </div>
     </AppErrorBoundary>
   );

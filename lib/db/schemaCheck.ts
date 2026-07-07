@@ -6,6 +6,7 @@ export const APP_PROFILE_PERMISSION_COLUMNS = [
   'can_manage_tasks',
   'can_administer_tasks',
   'can_manage_users',
+  'can_manage_attendance',
   'display_name',
 ] as const;
 

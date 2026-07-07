@@ -1,12 +1,15 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GetServerSidePropsContext } from 'next';
 import { requireAuthentication } from '@/lib/auth';
 import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import { ensureAppProfileRow } from '@/lib/permissions/getAppProfile';
 import AdminLayout from '@/components/Layout/AdminLayout';
+import ProfileAvatarField from '@/components/ProfileAvatarField';
 import type { AppPermissions } from '@/lib/permissions/types';
-import { Loader2 } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
+import { useSession } from '@/components/Layout/SessionContext';
 import { reportError } from '@/lib/monitoring';
 
 export const getServerSideProps = requireAuthentication(async (context: GetServerSidePropsContext) => {
@@ -27,10 +30,16 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 });
 
 export default function SettingsPage({ permissions }: { permissions: AppPermissions }) {
+  const { refreshSession } = useSession();
   const [name, setName] = useState(permissions.displayName ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(permissions.avatarUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAvatarUrl(permissions.avatarUrl ?? null);
+  }, [permissions.avatarUrl]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -55,10 +64,11 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
       if (!res.ok) {
         throw new Error(body?.message || 'Could not save');
       }
-      setMessage('Saved. Refresh the page to see your name everywhere.');
+      setMessage('Saved.');
       if (typeof body.display_name === 'string' || body.display_name === null) {
         setName(body.display_name ?? '');
       }
+      await refreshSession();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save');
       reportError(err, { source: 'SettingsPage.save' });
@@ -108,6 +118,8 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
 
   return (
     <AdminLayout permissions={permissions}>
+      {saving && <LoadingOverlay label="Saving profile…" />}
+      {pwSaving && <LoadingOverlay label="Updating password…" />}
       <Head>
         <title>Profile - Skyen Admin</title>
       </Head>
@@ -115,8 +127,26 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
         <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
         <p className="mt-1 text-slate-600 text-sm">
           Your email is <span className="font-medium text-slate-800">{permissions.accountEmail ?? '—'}</span> (sign-in
-          identity). Set a display name for tasks and the header.
+          identity). Set a display name and profile photo for tasks and the header.
         </p>
+
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">Profile photo</h2>
+          <p className="mt-1 text-xs text-slate-500">Upload a photo or keep the default initials avatar.</p>
+          <div className="mt-4">
+            <ProfileAvatarField
+              displayName={name.trim() || permissions.displayName || null}
+              email={permissions.accountEmail ?? null}
+              avatarUrl={avatarUrl}
+              onAvatarChange={async (url) => {
+                setAvatarUrl(url);
+                setMessage(url ? 'Profile photo updated.' : 'Using initials avatar.');
+                await refreshSession();
+              }}
+            />
+          </div>
+        </section>
+
         <form onSubmit={(e) => void save(e)} className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Display name</span>
@@ -132,14 +162,9 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           {message && <p className="text-sm text-emerald-700">{message}</p>}
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          <OutlineFillButtonAction type="submit" disabled={saving}>
             Save
-          </button>
+          </OutlineFillButtonAction>
         </form>
 
         <form
@@ -187,14 +212,9 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
           </label>
           {pwError && <p className="text-sm text-red-600">{pwError}</p>}
           {pwMessage && <p className="text-sm text-emerald-700">{pwMessage}</p>}
-          <button
-            type="submit"
-            disabled={pwSaving}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {pwSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          <OutlineFillButtonAction type="submit" disabled={pwSaving}>
             Update password
-          </button>
+          </OutlineFillButtonAction>
         </form>
       </div>
     </AdminLayout>

@@ -9,7 +9,7 @@ export default function Document() {
         <link rel="shortcut icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
       </Head>
-      <body className="antialiased">
+      <body className="antialiased font-sans">
         <Main />
         <NextScript />
       </body>

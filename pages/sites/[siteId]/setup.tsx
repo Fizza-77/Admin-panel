@@ -4,6 +4,8 @@ import Router from 'next/router';
 import { GetServerSidePropsContext } from 'next';
 import { useState } from 'react';
 import { Copy, Check, Trash2 } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import OutlineFillButton, { OutlineFillButtonAction, PlusIcon, BlogsListIcon } from '@/components/ui/OutlineFillButton';
 import { requireAuthentication, requirePermission, requireSetupPassword } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { supabase } from '@/lib/supabase/server';
@@ -165,6 +167,8 @@ const { data: blogs } = await supabase
 
   return (
     <AdminLayout permissions={permissions}>
+      {saving && <LoadingOverlay label="Saving site…" />}
+      {deleting && <LoadingOverlay label="Deleting site…" />}
       <Head>
         <title>Setup - {site.name || site.site_key} | Skyen Blog Admin</title>
       </Head>
@@ -175,24 +179,26 @@ const { data: blogs } = await supabase
           <p className="text-slate-500 mt-1">Configure this tenant and copy the integration details.</p>
         </div>
         <div className="grid w-full sm:w-auto grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          <Link
+          <OutlineFillButton
             href={`/sites/${site.id}/blogs`}
-            className="text-center min-h-10 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-2 sm:px-4 rounded-lg border border-gray-200 transition text-xs sm:text-sm"
+            icon={<BlogsListIcon />}
+            className="ui-outline-fill-btn--auto"
           >
             Blogs
-          </Link>
-          <Link
+          </OutlineFillButton>
+          <OutlineFillButton
             href={`/sites/${site.id}/categories`}
-            className="text-center min-h-10 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-2 px-2 sm:px-4 rounded-lg border border-teal-200 transition text-xs sm:text-sm"
+            className="ui-outline-fill-btn--auto"
           >
             Categories
-          </Link>
-          <Link
+          </OutlineFillButton>
+          <OutlineFillButton
             href={`/sites/${site.id}/blogs/create`}
-            className="text-center min-h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-2 sm:px-4 rounded-lg transition text-xs sm:text-sm"
+            icon={<PlusIcon />}
+            className="ui-outline-fill-btn--auto"
           >
             New Blog
-          </Link>
+          </OutlineFillButton>
         </div>
       </div>
 
@@ -224,13 +230,14 @@ const { data: blogs } = await supabase
           </div>
           <p className="text-xs text-gray-500 mt-3">`site_key` must be unique and uses lowercase letters, numbers, and hyphens.</p>
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <button
+            <OutlineFillButtonAction
+              type="button"
               onClick={onSave}
               disabled={saving}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm disabled:opacity-50"
+              className="!w-full sm:!w-auto"
             >
               {saving ? 'Saving...' : 'Save changes'}
-            </button>
+            </OutlineFillButtonAction>
             {saveMessage && <span className="text-sm text-green-700">{saveMessage}</span>}
             {saveError && <span className="text-sm text-red-600">{saveError}</span>}
           </div>

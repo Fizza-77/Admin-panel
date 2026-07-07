@@ -7,6 +7,8 @@ import AdminLayout from '@/components/Layout/AdminLayout';
 import { countBlogsForSiteId, lookupSiteById, normalizeSiteId } from '@/lib/sites/getSiteById';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { reportError } from '@/lib/monitoring';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 
 const SITE_KEY_REGEX = /^[a-z0-9-]+$/;
 
@@ -101,6 +103,7 @@ export default function RecoverSitePage({ siteId, blogCount, permissions }: Reco
 
   return (
     <AdminLayout permissions={permissions}>
+      {saving && <LoadingOverlay label="Re-connecting site…" />}
       <Head>
         <title>Re-connect site - Skyen Admin</title>
       </Head>
@@ -149,13 +152,9 @@ export default function RecoverSitePage({ siteId, blogCount, permissions }: Reco
             />
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
-          >
+          <OutlineFillButtonAction type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Re-connect site'}
-          </button>
+          </OutlineFillButtonAction>
         </form>
       </div>
     </AdminLayout>

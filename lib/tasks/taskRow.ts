@@ -1,5 +1,6 @@
 import type { TaskStatus } from './taskStatus';
 import type { TaskVisibility } from './taskVisibility';
+import type { TaskAttachment } from './taskAttachments';
 
 export type TaskRow = {
   id: string;
@@ -16,4 +17,5 @@ export type TaskRow = {
 export type TaskWithRelations = TaskRow & {
   assignee_ids: string[];
   tag_ids: string[];
+  attachments: TaskAttachment[];
 };

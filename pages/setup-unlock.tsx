@@ -2,7 +2,9 @@ import { useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import { Lock, Loader2 } from 'lucide-react';
+import { Lock } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/Spinner';
+import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import { requireAuthentication, requirePermission, resolveSetupUnlockGate } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { GetServerSideProps, GetServerSidePropsContext } from 'next';
@@ -51,6 +53,7 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp, permissions 
 
   return (
     <AdminLayout permissions={permissions}>
+      {loading && <LoadingOverlay label="Unlocking…" />}
       <Head>
         <title>Setup password - Blog Admin</title>
       </Head>
@@ -81,14 +84,9 @@ export default function SetupUnlockPage({ returnUrl: returnUrlProp, permissions 
               />
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full min-h-11 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm disabled:opacity-50 flex justify-center items-center gap-2"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+          <OutlineFillButtonAction type="submit" disabled={loading} className="!w-full">
             Continue
-          </button>
+          </OutlineFillButtonAction>
         </form>
       </div>
     </AdminLayout>
