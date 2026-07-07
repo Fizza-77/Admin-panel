@@ -100,9 +100,9 @@ function buildMonthDaySummaries(
   }
 
   const out: Record<string, TeamDaySummary> = {};
-  for (const [date, summary] of byDate) {
+  byDate.forEach((summary, date) => {
     out[date] = summary;
-  }
+  });
   return out;
 }
 
