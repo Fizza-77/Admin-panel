@@ -121,7 +121,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : [];
     const tag_ids = Array.isArray(body.tag_ids) ? body.tag_ids.filter((x: unknown) => typeof x === 'string') : [];
     const new_attachments = Array.isArray(body.attachments)
-      ? body.attachments.map(parseAttachmentInput).filter((a): a is PendingTaskAttachment => a !== null)
+      ? body.attachments
+          .map((item: unknown) => parseAttachmentInput(item))
+          .filter((a: PendingTaskAttachment | null): a is PendingTaskAttachment => a !== null)
       : [];
 
     if (!title) {

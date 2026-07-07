@@ -153,7 +153,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? body.attachment_ids_to_keep.filter((x: unknown): x is string => typeof x === 'string')
         : loaded.attachments.map((a) => a.id);
       const newOnes = Array.isArray(body.new_attachments)
-        ? body.new_attachments.map(parseAttachmentInput).filter((a): a is PendingTaskAttachment => a !== null)
+        ? body.new_attachments
+            .map((item: unknown) => parseAttachmentInput(item))
+            .filter((a: PendingTaskAttachment | null): a is PendingTaskAttachment => a !== null)
         : [];
       try {
         await replaceTaskAttachments(taskId, userId, keepIds, newOnes);
