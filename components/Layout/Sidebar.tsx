@@ -49,15 +49,6 @@ export default function Sidebar() {
   const canUsers = permissions?.canAccessUserManagement ?? false;
   const canMarkAttendance = canMarkTeamAttendance(permissions);
 
-  const comingSoonNavItems = new Set(['My attendance', 'Mark attendance']);
-
-  const handleNavItemClick = (itemName: string, event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (comingSoonNavItems.has(itemName)) {
-      event.preventDefault();
-      setComingSoonOpen(true);
-    }
-  };
-
   const navItems: Array<{ name: string; href: string; icon: typeof LayoutDashboard }> = [];
   if (canBlogs) {
     navItems.push({ name: 'Blog dashboard', href: '/', icon: LayoutDashboard });
@@ -119,7 +110,6 @@ export default function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={(event) => handleNavItemClick(item.name, event)}
                 className={cn(
                   'inline-flex min-h-10 items-center gap-1.5 rounded-[18px] border px-3 py-2 text-sm font-medium transition-all duration-200',
                   isActive
@@ -202,7 +192,6 @@ export default function Sidebar() {
                   key={item.name}
                   href={item.href}
                   title={collapsed ? item.name : undefined}
-                  onClick={(event) => handleNavItemClick(item.name, event)}
                   className={navLinkClass(isActive, collapsed)}
                   aria-current={isActive ? 'page' : undefined}
                 >
@@ -286,12 +275,6 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      <InfoDialog
-        open={comingSoonOpen}
-        title="Coming soon!"
-        description="This feature is on its way. Stay tuned."
-        onClose={() => setComingSoonOpen(false)}
-      />
     </>
   );
 }
