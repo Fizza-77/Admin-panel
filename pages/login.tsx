@@ -134,9 +134,6 @@ export default function Login() {
             <h1 className="mt-16 max-w-lg text-4xl font-semibold leading-[1.15] tracking-tight text-white xl:text-5xl">
               Your control center for content, tasks, and teams.
             </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-zinc-400">
-              A polished workspace to publish blogs, run your task board, and manage access — all in one place.
-            </p>
 
             <ul className="mt-10 space-y-4">
               {highlights.map(({ icon: Icon, text }) => (

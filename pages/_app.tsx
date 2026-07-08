@@ -1,11 +1,12 @@
 import '@/styles/globals.css';
 import type { AppProps } from 'next/app';
 import { Inter, Sora } from 'next/font/google';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import ConnectionProvider from '@/components/ConnectionProvider';
 import RouteNavigationProvider from '@/components/RouteNavigationProvider';
+import SkyenSplashScreen from '@/components/SkyenSplashScreen';
 import { reportError } from '@/lib/monitoring';
 import { startAdminSessionMaintenance } from '@/lib/auth/clientSession';
 
@@ -23,6 +24,8 @@ const sora = Sora({
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+  const [splashTrigger, setSplashTrigger] = useState(0);
+  const prevPathRef = useRef<string | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add(inter.variable, sora.variable);
@@ -30,6 +33,28 @@ export default function App({ Component, pageProps }: AppProps) {
       document.documentElement.classList.remove(inter.variable, sora.variable);
     };
   }, []);
+
+  // Show splash whenever user:
+  // 1) opens an already-authenticated session, or
+  // 2) logs in (route change from /login → any non-/login page).
+  useEffect(() => {
+    const currentPath = router.pathname;
+    const prevPath = prevPathRef.current;
+
+    if (prevPath === null) {
+      prevPathRef.current = currentPath;
+      if (currentPath !== '/login') {
+        setSplashTrigger((v) => v + 1);
+      }
+      return;
+    }
+
+    if (prevPath === '/login' && currentPath !== '/login') {
+      setSplashTrigger((v) => v + 1);
+    }
+
+    prevPathRef.current = currentPath;
+  }, [router.pathname]);
 
   useEffect(() => {
     return startAdminSessionMaintenance(router.pathname === '/login');
@@ -68,11 +93,12 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <AppErrorBoundary>
       <div className={`${inter.variable} ${sora.variable} font-sans`}>
-      <ConnectionProvider>
-      <RouteNavigationProvider>
-        <Component {...pageProps} />
-      </RouteNavigationProvider>
-      </ConnectionProvider>
+        <SkyenSplashScreen shouldShow={router.pathname !== '/login'} triggerKey={splashTrigger} />
+        <ConnectionProvider>
+          <RouteNavigationProvider>
+            <Component {...pageProps} />
+          </RouteNavigationProvider>
+        </ConnectionProvider>
       </div>
     </AppErrorBoundary>
   );

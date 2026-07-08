@@ -49,7 +49,7 @@ export default function Sidebar() {
   const canUsers = permissions?.canAccessUserManagement ?? false;
   const canMarkAttendance = canMarkTeamAttendance(permissions);
 
-  const comingSoonNavItems = new Set(['My attendance', 'Mark attendance', 'All employees']);
+  const comingSoonNavItems = new Set(['My attendance', 'Mark attendance']);
 
   const handleNavItemClick = (itemName: string, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (comingSoonNavItems.has(itemName)) {

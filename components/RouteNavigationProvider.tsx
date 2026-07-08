@@ -29,11 +29,17 @@ export default function RouteNavigationProvider({ children }: { children: ReactN
       if (shallow) {
         return;
       }
-      if (routePath(router.asPath) === routePath(url)) {
+      const fromPath = routePath(router.asPath);
+      const toPath = routePath(url);
+      if (fromPath === toPath) {
+        return;
+      }
+      // Let the Skyen splash screen handle the transition from login → dashboard
+      if (fromPath === '/login' && toPath !== '/login') {
         return;
       }
       setPendingUrl(url);
-      setLoggingOut(routePath(url) === '/login' && peekLoggingOut());
+      setLoggingOut(toPath === '/login' && peekLoggingOut());
       setIsNavigating(true);
     };
 
