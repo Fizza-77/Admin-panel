@@ -187,6 +187,11 @@ async function ensureProfileRowForUser(
         can_manage_attendance: FULL_ACCESS_PROFILE_FLAGS.can_manage_attendance,
         can_manage_expenses: FULL_ACCESS_PROFILE_FLAGS.can_manage_expenses,
         display_name: null,
+        surname: null,
+        qualification: null,
+        contact_info: null,
+        company_role: null,
+        salary: null,
         avatar_url: null,
       }
     : {
@@ -197,6 +202,11 @@ async function ensureProfileRowForUser(
         can_manage_attendance: DEFAULT_APP_PROFILE_FLAGS.can_manage_attendance,
         can_manage_expenses: DEFAULT_APP_PROFILE_FLAGS.can_manage_expenses,
         display_name: null,
+        surname: null,
+        qualification: null,
+        contact_info: null,
+        company_role: null,
+        salary: null,
         avatar_url: null,
       };
 
