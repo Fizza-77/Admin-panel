@@ -34,6 +34,8 @@ export type AdminUserRow = {
 
   can_manage_attendance: boolean;
 
+  can_manage_expenses: boolean;
+
   /** Present when profile row was auto-created during this request */
 
   profile_bootstrapped?: boolean;
@@ -178,6 +180,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         can_administer_tasks: p.can_administer_tasks,
         can_manage_users: p.can_manage_users,
         can_manage_attendance: p.can_manage_attendance,
+        can_manage_expenses: p.can_manage_expenses,
         profile_bootstrapped: createdSet.has(u.id) || undefined,
       });
     }
@@ -221,6 +224,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const can_administer_tasks = Boolean(body.can_administer_tasks);
 
     const can_manage_attendance = Boolean(body.can_manage_attendance);
+
+    const can_manage_expenses = Boolean(body.can_manage_expenses);
 
     const can_manage_users = false;
 
@@ -279,6 +284,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       can_administer_tasks,
       can_manage_users,
       can_manage_attendance,
+      can_manage_expenses,
       display_name,
       avatar_url: null,
     });
@@ -317,6 +323,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         can_manage_users,
 
         can_manage_attendance,
+
+        can_manage_expenses,
 
       },
 

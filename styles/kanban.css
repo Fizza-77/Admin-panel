@@ -32,11 +32,11 @@
   --kb-soon-soft: #fffbeb;
   --kb-calm: #94a3b8;
 
-  font-family: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--font-sans);
 }
 
 .kanban-display {
-  font-family: var(--font-sora, var(--font-inter, ui-sans-serif, system-ui, sans-serif));
+  font-family: var(--font-sans);
   letter-spacing: -0.02em;
 }
 

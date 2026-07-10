@@ -7,7 +7,11 @@ export const APP_PROFILE_PERMISSION_COLUMNS = [
   'can_administer_tasks',
   'can_manage_users',
   'can_manage_attendance',
+  'can_manage_expenses',
   'display_name',
+  'surname',
+  'qualification',
+  'company_role',
 ] as const;
 
 export type AppProfileSchemaStatus = {

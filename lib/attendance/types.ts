@@ -13,6 +13,11 @@ export type AttendanceRow = {
   user_id: string;
   email: string | null;
   display_name: string | null;
+  surname?: string | null;
+  qualification?: string | null;
+  contact_info?: string | null;
+  company_role?: string | null;
+  salary?: number | null;
   avatar_url?: string | null;
   status: AttendanceStatus | null;
   notes: string | null;

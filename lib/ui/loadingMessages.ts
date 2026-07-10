@@ -51,10 +51,14 @@ export function getRouteLoadingMessages(
     if (path === '/attendance/manage') {
       return ['Opening mark attendance…', 'Loading team calendar…', ...LONG_WAIT_HINTS];
     }
-    if (path === '/attendance/employees') {
+    return ['Opening your attendance…', 'Loading records…', ...LONG_WAIT_HINTS];
+  }
+
+  if (path === '/employees' || path.startsWith('/employees/')) {
+    if (path === '/employees') {
       return ['Opening all employees…', 'Loading team roster…', ...LONG_WAIT_HINTS];
     }
-    return ['Opening your attendance…', 'Loading records…', ...LONG_WAIT_HINTS];
+    return ['Opening employee report…', 'Loading attendance summaries…', ...LONG_WAIT_HINTS];
   }
 
   if (path.includes('/blogs')) {

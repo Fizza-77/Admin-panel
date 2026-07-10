@@ -61,11 +61,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     typeof body.can_manage_blogs !== 'boolean' ||
     typeof body.can_administer_tasks !== 'boolean' ||
     typeof body.can_manage_users !== 'boolean' ||
-    typeof body.can_manage_attendance !== 'boolean'
+    typeof body.can_manage_attendance !== 'boolean' ||
+    typeof body.can_manage_expenses !== 'boolean'
   ) {
     return res.status(400).json({
       message:
-        'Body must include boolean can_manage_blogs, can_administer_tasks, can_manage_users, and can_manage_attendance',
+        'Body must include boolean can_manage_blogs, can_administer_tasks, can_manage_users, can_manage_attendance, and can_manage_expenses',
     });
   }
 
@@ -93,12 +94,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let can_administer_tasks = body.can_administer_tasks;
   let can_manage_users = body.can_manage_users;
   let can_manage_attendance = body.can_manage_attendance;
+  let can_manage_expenses = body.can_manage_expenses;
 
   if (targetIsPrimary) {
     can_manage_blogs = true;
     can_administer_tasks = true;
     can_manage_users = true;
     can_manage_attendance = true;
+    can_manage_expenses = true;
   } else {
     if (body.can_manage_users) {
       return res.status(400).json({ message: 'Granting user management is not allowed for non-admin accounts.' });
@@ -113,6 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     can_administer_tasks,
     can_manage_users,
     can_manage_attendance,
+    can_manage_expenses,
     display_name,
     avatar_url: existing?.avatar_url ?? null,
   });
@@ -130,6 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       can_administer_tasks,
       can_manage_users,
       can_manage_attendance,
+      can_manage_expenses,
       display_name,
     },
   });

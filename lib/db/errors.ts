@@ -98,6 +98,12 @@ export function isMissingTableError(error: DbErrorLike | null | undefined, table
 export const ATTENDANCE_SETUP_HINT =
   'Attendance tables are not set up yet. Run supabase/migrations/20260705100000_attendance_system.sql in the Supabase SQL Editor, then reload.';
 
+export const EXPENSE_SETUP_HINT =
+  'Expense tracker tables are not set up yet. Run supabase/migrations/20260711120000_expense_tracker.sql in the Supabase SQL Editor, then reload.';
+
+export const EMPLOYEE_SOFTWARE_SETUP_HINT =
+  'Employee software tracking is not set up yet. Run supabase/migrations/20260711150000_employee_software.sql in the Supabase SQL Editor, then reload.';
+
 export function isMissingColumnError(error: DbErrorLike | null | undefined, columnName: string): boolean {
   if (!error) {
     return false;

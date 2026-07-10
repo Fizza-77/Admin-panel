@@ -1,6 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: '/attendance/employees',
+        destination: '/employees',
+        permanent: true,
+      },
+      {
+        source: '/attendance/employees/:userId',
+        destination: '/employees/:userId',
+        permanent: true,
+      },
+    ];
+  },
   transpilePackages: [
     "@tiptap/react",
     "@tiptap/starter-kit",

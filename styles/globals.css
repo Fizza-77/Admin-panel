@@ -27,6 +27,8 @@
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.06);
     --shadow-card-hover: 0 4px 12px rgb(91 92 235 / 0.08), 0 16px 40px rgb(0 0 0 / 0.08);
     --gradient-primary: linear-gradient(135deg, #5b5ceb 0%, #7c3aed 100%);
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', Arial, sans-serif;
   }
 
   html {
@@ -501,7 +503,7 @@
 
   .conn-loss-title {
     margin: 0;
-    font-family: var(--font-sora, var(--font-inter, ui-sans-serif, system-ui, sans-serif));
+    font-family: var(--font-sans);
     font-size: 1.375rem;
     line-height: 1.25;
     font-weight: 700;
@@ -646,7 +648,7 @@
       0 20px 48px rgb(15 23 42 / 0.12);
     padding: 1.5rem 1.5rem 1.25rem;
     text-align: center;
-    font-family: var(--font-inter, Inter, ui-sans-serif, system-ui, sans-serif);
+    font-family: var(--font-sans);
     animation: conn-loss-card-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   }
 

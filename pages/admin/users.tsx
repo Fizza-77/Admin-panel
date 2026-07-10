@@ -21,6 +21,7 @@ export type AdminUserRow = {
   can_administer_tasks: boolean;
   can_manage_users: boolean;
   can_manage_attendance: boolean;
+  can_manage_expenses: boolean;
 };
 
 export const getServerSideProps = requireAuthentication(
@@ -56,6 +57,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
   const [newBlogs, setNewBlogs] = useState(true);
   const [newTaskAdmin, setNewTaskAdmin] = useState(false);
   const [newAttendanceControl, setNewAttendanceControl] = useState(false);
+  const [newExpenseTracker, setNewExpenseTracker] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
 
   const isPrimaryOwnerRow = (row: AdminUserRow) =>
@@ -109,6 +111,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           can_administer_tasks: row.can_administer_tasks,
           can_manage_users: row.can_manage_users,
           can_manage_attendance: row.can_manage_attendance,
+          can_manage_expenses: row.can_manage_expenses,
           display_name: (row.display_name ?? '').trim() || null,
         }),
       });
@@ -173,6 +176,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           can_manage_blogs: newBlogs,
           can_administer_tasks: newTaskAdmin,
           can_manage_attendance: newAttendanceControl,
+          can_manage_expenses: newExpenseTracker,
           can_manage_users: false,
         }),
       });
@@ -186,6 +190,7 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       setNewBlogs(true);
       setNewTaskAdmin(false);
       setNewAttendanceControl(false);
+      setNewExpenseTracker(false);
       setNewDisplayName('');
       setPage(1);
       await load(1);
@@ -220,7 +225,9 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
             Every user gets basic <span className="font-medium">Tasks</span> access automatically (view assigned tasks,
             update status). Enable <span className="font-medium">Tasks admin</span> only for people who should create
             tasks, edit any task, and manage tags. Enable <span className="font-medium">Attendance control</span> for
-            users who should mark daily attendance for the whole team. User management stays with the primary admin email.
+            users who should mark daily attendance for the whole team. Enable{' '}
+            <span className="font-medium">Expense tracker</span> for users who should record and view team expenses.
+            User management stays with the primary admin email.
           </p>
         </div>
 
@@ -286,6 +293,17 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                   onChange={(e) => setNewAttendanceControl(e.target.checked)}
                 />
                 Attendance control
+              </label>
+              <label
+                className="inline-flex items-center gap-2 text-sm"
+                title="Record and view team expenses"
+              >
+                <input
+                  type="checkbox"
+                  checked={newExpenseTracker}
+                  onChange={(e) => setNewExpenseTracker(e.target.checked)}
+                />
+                Expense tracker
               </label>
               <span className="text-xs text-slate-500 sm:col-span-2 lg:col-span-4">
                 Basic task access is enabled for all new users.
@@ -353,6 +371,9 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                     <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Mark attendance for everyone">
                       Attendance control
                     </th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Record and view team expenses">
+                      Expense tracker
+                    </th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Action</th>
                   </tr>
                 </thead>
@@ -406,6 +427,16 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                             onChange={(e) => updateLocalRow(row.id, { can_manage_attendance: e.target.checked })}
                             aria-label="Attendance control — mark attendance for everyone"
                             title="Attendance control: mark daily attendance for all team members"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={primaryLocked ? true : row.can_manage_expenses}
+                            disabled={primaryLocked}
+                            onChange={(e) => updateLocalRow(row.id, { can_manage_expenses: e.target.checked })}
+                            aria-label="Expense tracker — record and view team expenses"
+                            title="Expense tracker: record and view team expenses"
                           />
                         </td>
                         <td className="px-4 py-3 text-right">

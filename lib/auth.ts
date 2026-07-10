@@ -151,7 +151,7 @@ type GsspWithPermissions = (
  * Chain inside `requireAuthentication`: `requireAuthentication(requirePermission({ blogs: true }, gssp))`.
  */
 export function requirePermission(
-  needs: { blogs?: boolean; tasks?: boolean; users?: boolean; attendance?: boolean },
+  needs: { blogs?: boolean; tasks?: boolean; users?: boolean; attendance?: boolean; expenses?: boolean },
   gssp: GsspWithPermissions,
 ) {
   return async (context: GetServerSidePropsContext) => {
@@ -202,6 +202,14 @@ export function requirePermission(
       };
     }
     if (needs.attendance && !permissions.canManageAttendance && !permissions.isPrimaryAdmin) {
+      return {
+        redirect: {
+          destination: '/unauthorized',
+          permanent: false,
+        },
+      };
+    }
+    if (needs.expenses && !permissions.canManageExpenses && !permissions.isPrimaryAdmin) {
       return {
         redirect: {
           destination: '/unauthorized',

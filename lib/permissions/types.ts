@@ -13,6 +13,8 @@ export type AppPermissions = {
   canCreateTaskTags: boolean;
   /** Mark attendance for all team members. */
   canManageAttendance: boolean;
+  /** View and manage team expenses. */
+  canManageExpenses: boolean;
   /** From `app_profiles.display_name`; UI falls back to email when null */
   displayName?: string | null;
   /** Cloudinary profile photo; UI falls back to initials when null */

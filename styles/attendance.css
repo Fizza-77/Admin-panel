@@ -69,7 +69,7 @@
 }
 
 .att-month-title {
-  font-family: var(--font-sora, var(--font-inter, ui-sans-serif, system-ui, sans-serif));
+  font-family: var(--font-sans);
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -368,7 +368,7 @@
 }
 
 .att-report-title {
-  font-family: var(--font-sora, var(--font-inter, ui-sans-serif, system-ui, sans-serif));
+  font-family: var(--font-sans);
   font-size: 1rem;
   font-weight: 600;
   color: #0f172a;

@@ -15,12 +15,18 @@ export type AppProfileRow = {
   can_administer_tasks: boolean;
   can_manage_users: boolean;
   can_manage_attendance: boolean;
+  can_manage_expenses: boolean;
   display_name: string | null;
+  surname: string | null;
+  qualification: string | null;
+  contact_info: string | null;
+  company_role: string | null;
+  salary: number | null;
   avatar_url: string | null;
 };
 
 const PROFILE_COLUMNS =
-  'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, can_manage_attendance, display_name, avatar_url';
+  'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, can_manage_attendance, can_manage_expenses, display_name, surname, qualification, contact_info, company_role, salary, avatar_url';
 
 export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow {
   const can_manage_users =
@@ -39,7 +45,19 @@ export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow
       raw.can_manage_attendance !== null && raw.can_manage_attendance !== undefined
         ? Boolean(raw.can_manage_attendance)
         : false,
+    can_manage_expenses:
+      raw.can_manage_expenses !== null && raw.can_manage_expenses !== undefined
+        ? Boolean(raw.can_manage_expenses)
+        : false,
     display_name: typeof raw.display_name === 'string' ? raw.display_name : null,
+    surname: typeof raw.surname === 'string' ? raw.surname : null,
+    qualification: typeof raw.qualification === 'string' ? raw.qualification : null,
+    contact_info: typeof raw.contact_info === 'string' ? raw.contact_info : null,
+    company_role: typeof raw.company_role === 'string' ? raw.company_role : null,
+    salary:
+      raw.salary !== null && raw.salary !== undefined && Number.isFinite(Number(raw.salary))
+        ? Number(raw.salary)
+        : null,
     avatar_url: typeof raw.avatar_url === 'string' ? raw.avatar_url : null,
   };
 }
@@ -58,6 +76,7 @@ export type AppProfileUpsertInput = {
   can_administer_tasks: boolean;
   can_manage_users: boolean;
   can_manage_attendance: boolean;
+  can_manage_expenses: boolean;
   display_name: string | null;
   avatar_url: string | null;
 };
@@ -68,6 +87,7 @@ export const DEFAULT_APP_PROFILE_FLAGS = {
   can_administer_tasks: false,
   can_manage_users: false,
   can_manage_attendance: false,
+  can_manage_expenses: false,
 } as const;
 
 export const FULL_ACCESS_PROFILE_FLAGS = {
@@ -76,6 +96,7 @@ export const FULL_ACCESS_PROFILE_FLAGS = {
   can_administer_tasks: true,
   can_manage_users: true,
   can_manage_attendance: true,
+  can_manage_expenses: true,
 } as const;
 
 function enrichDbError(error: DbErrorLike): DbErrorLike {
@@ -240,6 +261,7 @@ async function upsertAppProfileRowViaRpc(input: AppProfileUpsertInput): Promise<
     p_can_administer_tasks: input.can_administer_tasks,
     p_can_manage_users: input.can_manage_users,
     p_can_manage_attendance: input.can_manage_attendance,
+    p_can_manage_expenses: input.can_manage_expenses,
     p_display_name: input.display_name,
     p_avatar_url: input.avatar_url,
   });
@@ -301,6 +323,94 @@ export async function upsertAppProfileRow(input: AppProfileUpsertInput): Promise
   }
 
   return upsertAppProfileRowDirect(input);
+}
+
+export type EmployeePersonalUpdate = {
+  display_name?: string | null;
+  surname?: string | null;
+  qualification?: string | null;
+  contact_info?: string | null;
+};
+
+export type EmployeeAdminUpdate = {
+  company_role?: string | null;
+  salary?: number | null;
+};
+
+async function patchProfileColumns(
+  userId: string,
+  patch: Record<string, unknown>,
+): Promise<UpsertProfileResult> {
+  const updated_at = new Date().toISOString();
+  const { error } = await supabase
+    .from('app_profiles')
+    .update({ ...patch, updated_at })
+    .eq('user_id', userId);
+
+  if (!error) {
+    return { ok: true };
+  }
+  return { ok: false, error: enrichDbError(error) };
+}
+
+/** Update user-editable profile fields (Profile page). */
+export async function updateEmployeePersonalProfile(
+  userId: string,
+  fields: EmployeePersonalUpdate,
+): Promise<UpsertProfileResult> {
+  const patch: Record<string, unknown> = {};
+  if (fields.display_name !== undefined) {
+    patch.display_name = fields.display_name;
+  }
+  if (fields.surname !== undefined) {
+    patch.surname = fields.surname;
+  }
+  if (fields.qualification !== undefined) {
+    patch.qualification = fields.qualification;
+  }
+  if (fields.contact_info !== undefined) {
+    patch.contact_info = fields.contact_info;
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: true };
+  }
+
+  const { row } = await fetchAppProfileRow(userId);
+  if (!row) {
+    const bootstrap = await upsertDefaultAppProfile(userId);
+    if (!bootstrap.ok) {
+      return bootstrap;
+    }
+  }
+
+  return patchProfileColumns(userId, patch);
+}
+
+/** Update admin-only employee fields (role, salary). */
+export async function updateEmployeeAdminProfile(
+  userId: string,
+  fields: EmployeeAdminUpdate,
+): Promise<UpsertProfileResult> {
+  const patch: Record<string, unknown> = {};
+  if (fields.company_role !== undefined) {
+    patch.company_role = fields.company_role;
+  }
+  if (fields.salary !== undefined) {
+    patch.salary = fields.salary;
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: true };
+  }
+
+  const { row } = await fetchAppProfileRow(userId);
+  if (!row) {
+    const bootstrap = await upsertDefaultAppProfile(userId);
+    if (!bootstrap.ok) {
+      return bootstrap;
+    }
+  }
+
+  return patchProfileColumns(userId, patch);
 }
 
 export async function upsertDefaultAppProfile(userId: string): Promise<UpsertProfileResult> {

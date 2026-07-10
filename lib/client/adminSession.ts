@@ -63,8 +63,16 @@ function isAppPermissions(value: unknown): value is AppPermissions {
     typeof p.canAdministerTasks === 'boolean' &&
     typeof p.canManageUsers === 'boolean' &&
     typeof p.canManageAttendance === 'boolean' &&
+    (typeof p.canManageExpenses === 'boolean' || p.canManageExpenses === undefined) &&
     typeof p.isPrimaryAdmin === 'boolean'
   );
+}
+
+function normalizeCachedPermissions(permissions: AppPermissions): AppPermissions {
+  return {
+    ...permissions,
+    canManageExpenses: permissions.canManageExpenses ?? false,
+  };
 }
 
 export function readAdminClientSession(): AdminClientSession | null {
@@ -88,7 +96,7 @@ export function readAdminClientSession(): AdminClientSession | null {
     return {
       userId: parsed.userId,
       email: typeof parsed.email === 'string' ? parsed.email : null,
-      permissions: parsed.permissions,
+      permissions: normalizeCachedPermissions(parsed.permissions),
       savedAt: parsed.savedAt,
     };
   } catch {

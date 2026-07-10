@@ -1,10 +1,13 @@
 export function userDisplayLabel(
   displayName: string | null | undefined,
   email: string | null | undefined,
+  surname?: string | null | undefined,
 ): string {
-  const name = displayName?.trim();
-  if (name) {
-    return name;
+  const first = displayName?.trim();
+  const last = surname?.trim();
+  const combined = [first, last].filter(Boolean).join(' ');
+  if (combined) {
+    return combined;
   }
   const mail = email?.trim();
   if (mail) {
@@ -16,8 +19,14 @@ export function userDisplayLabel(
 export function userInitials(
   displayName: string | null | undefined,
   email: string | null | undefined,
+  surname?: string | null | undefined,
 ): string {
-  const name = displayName?.trim();
+  const first = displayName?.trim();
+  const last = surname?.trim();
+  if (first && last) {
+    return (first[0] + last[0]).toUpperCase().slice(0, 2);
+  }
+  const name = first || last;
   if (name) {
     const parts = name.split(/\s+/).filter(Boolean);
     if (parts.length >= 2) {

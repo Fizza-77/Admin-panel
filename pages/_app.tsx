@@ -1,6 +1,5 @@
 import '@/styles/globals.css';
 import type { AppProps } from 'next/app';
-import { Inter, Sora } from 'next/font/google';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
@@ -10,29 +9,10 @@ import SkyenSplashScreen from '@/components/SkyenSplashScreen';
 import { reportError } from '@/lib/monitoring';
 import { startAdminSessionMaintenance } from '@/lib/auth/clientSession';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const sora = Sora({
-  subsets: ['latin'],
-  variable: '--font-sora',
-  display: 'swap',
-});
-
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [splashTrigger, setSplashTrigger] = useState(0);
   const prevPathRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    document.documentElement.classList.add(inter.variable, sora.variable);
-    return () => {
-      document.documentElement.classList.remove(inter.variable, sora.variable);
-    };
-  }, []);
 
   // Show splash whenever user:
   // 1) opens an already-authenticated session, or
@@ -92,7 +72,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <AppErrorBoundary>
-      <div className={`${inter.variable} ${sora.variable} font-sans`}>
+      <div className="font-sans">
         <SkyenSplashScreen shouldShow={router.pathname !== '/login'} triggerKey={splashTrigger} />
         <ConnectionProvider>
           <RouteNavigationProvider>

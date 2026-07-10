@@ -31,8 +31,12 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
 
 export default function SettingsPage({ permissions }: { permissions: AppPermissions }) {
   const { refreshSession } = useSession();
-  const [name, setName] = useState(permissions.displayName ?? '');
+  const [firstName, setFirstName] = useState(permissions.displayName ?? '');
+  const [surname, setSurname] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [contactInfo, setContactInfo] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(permissions.avatarUrl ?? null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +44,27 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
   useEffect(() => {
     setAvatarUrl(permissions.avatarUrl ?? null);
   }, [permissions.avatarUrl]);
+
+  useEffect(() => {
+    void (async () => {
+      setProfileLoading(true);
+      try {
+        const res = await fetch('/api/profile', { credentials: 'include' });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(body?.message || 'Failed to load profile');
+        }
+        setFirstName(body.display_name ?? '');
+        setSurname(body.surname ?? '');
+        setQualification(body.qualification ?? '');
+        setContactInfo(body.contact_info ?? '');
+      } catch (e: unknown) {
+        reportError(e, { source: 'SettingsPage.loadProfile' });
+      } finally {
+        setProfileLoading(false);
+      }
+    })();
+  }, []);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -58,16 +83,22 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display_name: name.trim() || null }),
+        body: JSON.stringify({
+          display_name: firstName.trim() || null,
+          surname: surname.trim() || null,
+          qualification: qualification.trim() || null,
+          contact_info: contactInfo.trim() || null,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(body?.message || 'Could not save');
       }
+      setFirstName(body.display_name ?? '');
+      setSurname(body.surname ?? '');
+      setQualification(body.qualification ?? '');
+      setContactInfo(body.contact_info ?? '');
       setMessage('Saved.');
-      if (typeof body.display_name === 'string' || body.display_name === null) {
-        setName(body.display_name ?? '');
-      }
       await refreshSession();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save');
@@ -118,7 +149,7 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
 
   return (
     <AdminLayout permissions={permissions}>
-      {saving && <LoadingOverlay label="Saving profile…" />}
+      {(saving || profileLoading) && <LoadingOverlay label={profileLoading ? 'Loading profile…' : 'Saving profile…'} />}
       {pwSaving && <LoadingOverlay label="Updating password…" />}
       <Head>
         <title>Profile - Skyen Admin</title>
@@ -126,8 +157,8 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
       <div className="max-w-lg">
         <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
         <p className="mt-1 text-slate-600 text-sm">
-          Your email is <span className="font-medium text-slate-800">{permissions.accountEmail ?? '—'}</span> (sign-in
-          identity). Set a display name and profile photo for tasks and the header.
+          Update your personal details here. Your email is used to sign in and cannot be changed. Role and salary are
+          set by your admin.
         </p>
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -135,7 +166,7 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
           <p className="mt-1 text-xs text-slate-500">Upload a photo or keep the default initials avatar.</p>
           <div className="mt-4">
             <ProfileAvatarField
-              displayName={name.trim() || permissions.displayName || null}
+              displayName={firstName.trim() || permissions.displayName || null}
               email={permissions.accountEmail ?? null}
               avatarUrl={avatarUrl}
               onAvatarChange={async (url) => {
@@ -148,21 +179,63 @@ export default function SettingsPage({ permissions }: { permissions: AppPermissi
         </section>
 
         <form onSubmit={(e) => void save(e)} className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">Personal details</h2>
           <label className="block">
-            <span className="text-sm font-medium text-slate-700">Display name</span>
+            <span className="text-sm font-medium text-slate-700">Email</span>
+            <input
+              type="email"
+              value={permissions.accountEmail ?? ''}
+              readOnly
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+            />
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">First name</span>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                maxLength={120}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Surname</span>
+              <input
+                type="text"
+                value={surname}
+                onChange={(e) => setSurname(e.target.value)}
+                maxLength={120}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Qualification</span>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={qualification}
+              onChange={(e) => setQualification(e.target.value)}
               maxLength={120}
-              placeholder="e.g. Alex Morgan"
+              placeholder="e.g. BSc Computer Science"
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
-            <span className="mt-1 block text-xs text-slate-500">Shown instead of email where possible. Leave empty to use email.</span>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Contact info</span>
+            <input
+              type="text"
+              value={contactInfo}
+              onChange={(e) => setContactInfo(e.target.value)}
+              maxLength={200}
+              placeholder="Phone number or other contact"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           {message && <p className="text-sm text-emerald-700">{message}</p>}
-          <OutlineFillButtonAction type="submit" disabled={saving}>
+          <OutlineFillButtonAction type="submit" disabled={saving || profileLoading}>
             Save
           </OutlineFillButtonAction>
         </form>

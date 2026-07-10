@@ -13,6 +13,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Receipt,
   Settings,
   UserRound,
   Users,
@@ -25,6 +26,7 @@ import { useSession } from './SessionContext';
 import { useSidebar } from './SidebarContext';
 import InfoDialog from '@/components/ui/InfoDialog';
 import { canMarkTeamAttendance } from '@/lib/permissions/attendanceAccess';
+import { canAccessExpenseTracker } from '@/lib/permissions/expenseAccess';
 import { cn } from '@/lib/ui/cn';
 
 export default function Sidebar() {
@@ -48,6 +50,7 @@ export default function Sidebar() {
   const canTasks = permissions?.canManageTasks ?? false;
   const canUsers = permissions?.canAccessUserManagement ?? false;
   const canMarkAttendance = canMarkTeamAttendance(permissions);
+  const canExpenses = canAccessExpenseTracker(permissions);
 
   const navItems: Array<{ name: string; href: string; icon: typeof LayoutDashboard }> = [];
   if (canBlogs) {
@@ -57,10 +60,15 @@ export default function Sidebar() {
   if (canTasks) {
     navItems.push({ name: 'Tasks', href: '/tasks', icon: CheckSquare });
   }
-  navItems.push({ name: 'My attendance', href: '/attendance', icon: CalendarCheck });
+  if (!canMarkAttendance) {
+    navItems.push({ name: 'My attendance', href: '/attendance', icon: CalendarCheck });
+  }
   if (canMarkAttendance) {
     navItems.push({ name: 'Mark attendance', href: '/attendance/manage', icon: ClipboardList });
-    navItems.push({ name: 'All employees', href: '/attendance/employees', icon: UserRound });
+    navItems.push({ name: 'All Employees', href: '/employees', icon: UserRound });
+  }
+  if (canExpenses) {
+    navItems.push({ name: 'Expense tracker', href: '/expenses', icon: Receipt });
   }
   if (canUsers) {
     navItems.push({ name: 'User management', href: '/admin/users', icon: Users });
@@ -82,8 +90,11 @@ export default function Sidebar() {
     if (item.name === 'Mark attendance') {
       return router.pathname === '/attendance/manage';
     }
-    if (item.name === 'All employees') {
-      return router.pathname === '/attendance/employees';
+    if (item.name === 'All Employees') {
+      return router.pathname === '/employees' || router.pathname.startsWith('/employees/');
+    }
+    if (item.name === 'Expense tracker') {
+      return router.pathname === '/expenses' || router.pathname.startsWith('/expenses/');
     }
     if (item.name === 'User management') {
       return router.pathname === '/admin/users' || router.pathname.startsWith('/admin/');

@@ -31,11 +31,10 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: [
-          'var(--font-inter)',
-          'Inter',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
+          'BlinkMacSystemFont',
           'Segoe UI',
           'Roboto',
           'Helvetica Neue',
