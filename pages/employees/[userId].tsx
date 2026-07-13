@@ -2,13 +2,13 @@ import Head from 'next/head';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { LoadingOverlay } from '@/components/ui/Spinner';
-import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import { reportError } from '@/lib/monitoring';
+import { canMarkTeamAttendance } from '@/lib/permissions/attendanceAccess';
 import AttendanceReports from '@/components/attendance/AttendanceReports';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { userDisplayLabel } from '@/lib/users/display';
@@ -31,11 +31,129 @@ export const getServerSideProps = requireAuthentication(
   requirePermission({ attendance: true }, async () => ({ props: {} })),
 );
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function ProfileField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm font-medium text-slate-900">{value}</dd>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+type AdminInlineFieldProps = {
+  label: string;
+  savedValue: string;
+  displayValue?: string;
+  onSave: (value: string) => Promise<void>;
+  inputType?: 'text' | 'number';
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  maxLength?: number;
+  placeholder?: string;
+  saveLabel: string;
+};
+
+function AdminInlineField({
+  label,
+  savedValue,
+  displayValue,
+  onSave,
+  inputType = 'text',
+  inputMode,
+  maxLength,
+  placeholder,
+  saveLabel,
+}: AdminInlineFieldProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isSet = savedValue.trim().length > 0;
+  const shownValue = displayValue ?? savedValue;
+
+  const startEdit = () => {
+    setDraft(savedValue);
+    setError(null);
+    setEditing(true);
+  };
+
+  const cancel = () => {
+    setDraft(savedValue);
+    setError(null);
+    setEditing(false);
+  };
+
+  const confirm = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      await onSave(draft.trim());
+      setEditing(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <div className="mt-1 flex min-h-[28px] items-center gap-2">
+        {editing ? (
+          <input
+            type={inputType}
+            inputMode={inputMode}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            disabled={saving}
+            autoFocus
+            className="min-w-0 flex-1 border-0 border-b border-black bg-transparent px-0 py-0.5 text-sm font-medium text-slate-900 outline-none focus:border-black focus:ring-0 disabled:opacity-50"
+          />
+        ) : isSet ? (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="min-w-0 flex-1 truncate text-left text-sm font-medium text-slate-900 hover:underline"
+          >
+            {shownValue}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="min-w-0 flex-1 text-left text-sm font-medium text-slate-400 hover:text-slate-600 hover:underline"
+          >
+            —
+          </button>
+        )}
+
+        {editing && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void confirm()}
+              disabled={saving}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+              aria-label={saveLabel}
+            >
+              <Check className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={cancel}
+              disabled={saving}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-700 hover:bg-red-50 disabled:opacity-50"
+              aria-label={`Cancel ${label.toLowerCase()}`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
@@ -60,11 +178,7 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  const [companyRole, setCompanyRole] = useState('');
-  const [salary, setSalary] = useState('');
-  const [adminSaving, setAdminSaving] = useState(false);
-  const [adminMessage, setAdminMessage] = useState<string | null>(null);
-  const [adminError, setAdminError] = useState<string | null>(null);
+  const isAdmin = canMarkTeamAttendance(permissions);
 
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState<string | null>(null);
@@ -87,8 +201,6 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
       }
       const profile = body.employee as EmployeeProfile;
       setEmployee(profile);
-      setCompanyRole(profile.company_role ?? '');
-      setSalary(profile.salary != null ? String(profile.salary) : '');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load employee';
       setProfileError(msg);
@@ -176,39 +288,32 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
     void loadReports(month);
   }, [loadReports, month, userId]);
 
-  const saveAdminFields = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveAdminField = async (patch: { company_role?: string | null; salary?: string | null }) => {
     if (!userId) {
       return;
     }
-    setAdminMessage(null);
-    setAdminError(null);
-    setAdminSaving(true);
-    try {
-      const res = await fetch(`/api/employees/${encodeURIComponent(userId)}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company_role: companyRole.trim() || null,
-          salary: salary.trim() || null,
-        }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body?.message || 'Failed to save');
-      }
-      const profile = body.employee as EmployeeProfile;
-      setEmployee(profile);
-      setCompanyRole(profile.company_role ?? '');
-      setSalary(profile.salary != null ? String(profile.salary) : '');
-      setAdminMessage('Role and salary saved.');
-    } catch (err: unknown) {
-      setAdminError(err instanceof Error ? err.message : 'Failed to save');
-      reportError(err, { source: 'EmployeeDetailPage.saveAdminFields', userId });
-    } finally {
-      setAdminSaving(false);
+    const res = await fetch(`/api/employees/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message = body?.message || 'Failed to save';
+      reportError(new Error(message), { source: 'EmployeeDetailPage.saveAdminField', userId, patch });
+      throw new Error(message);
     }
+    const profile = body.employee as EmployeeProfile;
+    setEmployee(profile);
+  };
+
+  const saveRole = async (value: string) => {
+    await saveAdminField({ company_role: value.trim() || null });
+  };
+
+  const saveSalary = async (value: string) => {
+    await saveAdminField({ salary: value.trim() || null });
   };
 
   const fullName = employee
@@ -217,7 +322,6 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
 
   const overlayMessages =
     profileLoading ? ['Loading employee…', 'Fetching profile details…']
-    : adminSaving ? ['Saving role and salary…', 'Updating employee record…']
     : reportsLoading ? ['Loading attendance…', 'Fetching reports…']
     : null;
 
@@ -247,53 +351,42 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
               </div>
             </div>
 
-            <dl className="grid gap-4 border-b border-slate-100 px-4 py-5 sm:grid-cols-2 sm:px-6">
-              <DetailItem label="First name" value={employee.display_name?.trim() || '—'} />
-              <DetailItem label="Surname" value={employee.surname?.trim() || '—'} />
-              <DetailItem label="Qualification" value={employee.qualification?.trim() || '—'} />
-              <DetailItem label="Contact info" value={employee.contact_info?.trim() || '—'} />
-              <DetailItem label="Role in company" value={employee.company_role?.trim() || '—'} />
-              <DetailItem label="Salary" value={formatEmployeeSalary(employee.salary)} />
-            </dl>
-
-            <form onSubmit={(e) => void saveAdminFields(e)} className="space-y-4 bg-slate-50/80 px-4 py-5 sm:px-6">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Admin settings</h2>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Set this employee&apos;s role and salary. Personal details are managed by the employee in Profile.
-                </p>
-              </div>
+            <div className="px-4 py-5 sm:px-6">
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-700">Role in company</span>
-                  <input
-                    type="text"
-                    value={companyRole}
-                    onChange={(e) => setCompanyRole(e.target.value)}
-                    maxLength={120}
-                    placeholder="e.g. Senior Developer"
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-700">Salary (PKR / month)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={salary}
-                    onChange={(e) => setSalary(e.target.value)}
-                    placeholder="e.g. 150000"
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                </label>
+                <ProfileField label="First name" value={employee.display_name?.trim() || '—'} />
+                <ProfileField label="Surname" value={employee.surname?.trim() || '—'} />
+                <ProfileField label="Qualification" value={employee.qualification?.trim() || '—'} />
+                <ProfileField label="Contact info" value={employee.contact_info?.trim() || '—'} />
+
+                {isAdmin ? (
+                  <>
+                    <AdminInlineField
+                      label="Role in company"
+                      savedValue={employee.company_role?.trim() ?? ''}
+                      onSave={saveRole}
+                      maxLength={120}
+                      placeholder="e.g. Senior Developer"
+                      saveLabel="Save role"
+                    />
+                    <AdminInlineField
+                      label="Salary (PKR / month)"
+                      savedValue={employee.salary != null ? String(employee.salary) : ''}
+                      displayValue={formatEmployeeSalary(employee.salary)}
+                      onSave={saveSalary}
+                      inputType="number"
+                      inputMode="numeric"
+                      placeholder="e.g. 150000"
+                      saveLabel="Save salary"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ProfileField label="Role in company" value={employee.company_role?.trim() || '—'} />
+                    <ProfileField label="Salary" value={formatEmployeeSalary(employee.salary)} />
+                  </>
+                )}
               </div>
-              {adminError && <p className="text-sm text-red-600">{adminError}</p>}
-              {adminMessage && <p className="text-sm text-emerald-700">{adminMessage}</p>}
-              <OutlineFillButtonAction type="submit" disabled={adminSaving}>
-                {adminSaving ? 'Saving…' : 'Save role & salary'}
-              </OutlineFillButtonAction>
-            </form>
+            </div>
           </section>
         ) : null}
 

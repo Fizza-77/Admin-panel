@@ -450,23 +450,40 @@ export async function fetchAppProfileRowsByUserIds(userIds: string[]): Promise<P
   }
 
   const byUserId = new Map<string, AppProfileRow>();
-  let lastError: DbErrorLike | null = null;
+  const CHUNK_SIZE = 100;
 
-  for (const userId of userIds) {
-    const { row, error } = await fetchAppProfileRow(userId);
-    if (row) {
-      byUserId.set(userId, row);
-    }
+  for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+    const chunk = userIds.slice(i, i + CHUNK_SIZE);
+    const { data, error } = await supabase
+      .from('app_profiles')
+      .select(`user_id, ${PROFILE_COLUMNS}`)
+      .in('user_id', chunk);
+
     if (error) {
-      lastError = error;
+      if (isUndefinedColumnError(error)) {
+        const { data: legacy, error: legacyErr } = await supabase
+          .from('app_profiles')
+          .select('user_id, can_manage_blogs, can_manage_tasks, can_manage_users')
+          .in('user_id', chunk);
+        if (legacyErr) {
+          reportError(legacyErr, { source: 'fetchAppProfileRowsByUserIds.legacy', chunkSize: chunk.length });
+          return { byUserId, error: enrichDbError(legacyErr) };
+        }
+        for (const row of legacy ?? []) {
+          byUserId.set(row.user_id as string, normalizeProfileRow(row as Record<string, unknown>));
+        }
+        continue;
+      }
+      reportError(error, { source: 'fetchAppProfileRowsByUserIds', chunkSize: chunk.length });
+      return { byUserId, error: enrichDbError(error) };
+    }
+
+    for (const row of data ?? []) {
+      byUserId.set(row.user_id as string, normalizeProfileRow(row as Record<string, unknown>));
     }
   }
 
-  if (lastError && byUserId.size === 0) {
-    return { byUserId, error: lastError };
-  }
-
-  return { byUserId, error: lastError };
+  return { byUserId, error: null };
 }
 
 export async function ensureAppProfileRowsForUserIds(userIds: string[]): Promise<{

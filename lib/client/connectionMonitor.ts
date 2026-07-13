@@ -6,7 +6,7 @@ type Listener = (state: ConnectionState) => void;
 
 const FAILURE_THRESHOLD = 1;
 const FAILURE_WINDOW_MS = 8000;
-const SLOW_FETCH_MS = 15000;
+const SLOW_FETCH_MS = 45000;
 
 let state: ConnectionState = 'online';
 let listeners = new Set<Listener>();

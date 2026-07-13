@@ -12,6 +12,12 @@ export function breadcrumbsFromPath(pathname: string): { label: string; href?: s
   if (pathname.startsWith('/employees/')) {
     return [{ label: 'All Employees', href: '/employees' }, { label: 'Employee Report' }];
   }
+  if (pathname === '/expenses') {
+    return [{ label: 'Expense tracker' }];
+  }
+  if (pathname === '/payroll') {
+    return [{ label: 'Payroll' }];
+  }
 
   const segments = pathname
     .split('/')

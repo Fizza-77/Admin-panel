@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
+  Banknote,
   CalendarCheck,
   CheckSquare,
   ClipboardList,
@@ -66,6 +67,7 @@ export default function Sidebar() {
   if (canMarkAttendance) {
     navItems.push({ name: 'Mark attendance', href: '/attendance/manage', icon: ClipboardList });
     navItems.push({ name: 'All Employees', href: '/employees', icon: UserRound });
+    navItems.push({ name: 'Payroll', href: '/payroll', icon: Banknote });
   }
   if (canExpenses) {
     navItems.push({ name: 'Expense tracker', href: '/expenses', icon: Receipt });
@@ -92,6 +94,9 @@ export default function Sidebar() {
     }
     if (item.name === 'All Employees') {
       return router.pathname === '/employees' || router.pathname.startsWith('/employees/');
+    }
+    if (item.name === 'Payroll') {
+      return router.pathname === '/payroll' || router.pathname.startsWith('/payroll/');
     }
     if (item.name === 'Expense tracker') {
       return router.pathname === '/expenses' || router.pathname.startsWith('/expenses/');

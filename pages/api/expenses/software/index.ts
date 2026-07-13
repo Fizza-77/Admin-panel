@@ -11,7 +11,11 @@ import {
   type BillingCycle,
   type EmployeeSoftwareItem,
 } from '@/lib/expenses/software';
-import { parseNonNegativeAmountInput } from '@/lib/expenses/types';
+import { parseIncomingAmountPkr } from '@/lib/expenses/currency';
+import {
+  deleteExpensesForSoftware,
+  syncSoftwareExpenseAfterSoftwareChange,
+} from '@/lib/expenses/softwareExpenseLink';
 
 function mapRow(row: Record<string, unknown>): EmployeeSoftwareItem | null {
   const id = typeof row.id === 'string' ? row.id : null;
@@ -134,10 +138,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let monthly_amount: number | null = null;
     if (body.monthly_amount !== undefined && body.monthly_amount !== null && body.monthly_amount !== '') {
-      monthly_amount = parseNonNegativeAmountInput(String(body.monthly_amount));
-      if (monthly_amount === null) {
-        return res.status(400).json({ message: 'Amount must be a non-negative number' });
+      const amountResult = parseIncomingAmountPkr(body, { allowZero: true });
+      if ('error' in amountResult) {
+        return res.status(400).json({ message: amountResult.error });
       }
+      monthly_amount = amountResult.pkr;
     }
 
     if (!user_id) {
@@ -185,6 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: 'Created row could not be read' });
     }
     const [enriched] = await enrichItems([mapped]);
+    await syncSoftwareExpenseAfterSoftwareChange(auth.userId);
     return res.status(201).json({ item: enriched });
   }
 

@@ -4,7 +4,11 @@ import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { formatDbError, isMissingTableError, EMPLOYEE_SOFTWARE_SETUP_HINT } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 import { isBillingCycle, type BillingCycle } from '@/lib/expenses/software';
-import { parseNonNegativeAmountInput } from '@/lib/expenses/types';
+import { parseIncomingAmountPkr } from '@/lib/expenses/currency';
+import {
+  deleteExpensesForSoftware,
+  syncSoftwareExpenseAfterSoftwareChange,
+} from '@/lib/expenses/softwareExpenseLink';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const auth = await requireApiPermission(req, res, { expenses: true });
@@ -42,11 +46,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (body.monthly_amount === null || body.monthly_amount === '') {
         updates.monthly_amount = null;
       } else {
-        const amount = parseNonNegativeAmountInput(String(body.monthly_amount));
-        if (amount === null) {
-          return res.status(400).json({ message: 'Amount must be a non-negative number' });
+        const amountResult = parseIncomingAmountPkr(body, { allowZero: true });
+        if ('error' in amountResult) {
+          return res.status(400).json({ message: amountResult.error });
         }
-        updates.monthly_amount = amount;
+        updates.monthly_amount = amountResult.pkr;
       }
     }
 
@@ -84,10 +88,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Software record not found' });
     }
 
+    await syncSoftwareExpenseAfterSoftwareChange(auth.userId);
     return res.status(200).json({ success: true });
   }
 
   if (req.method === 'DELETE') {
+    await deleteExpensesForSoftware(softwareId);
+
     const { data, error } = await supabase
       .from('employee_software')
       .delete()

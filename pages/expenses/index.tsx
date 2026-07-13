@@ -4,15 +4,17 @@ import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
-import PageHeader from '@/components/ui/PageHeader';
 import type { AppPermissions } from '@/lib/permissions/types';
 import { LoadingOverlay } from '@/components/ui/Spinner';
 import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmployeeSoftwarePanel from '@/components/expenses/EmployeeSoftwarePanel';
 import { reportError } from '@/lib/monitoring';
+import { employeeFullName } from '@/lib/employees/profile';
+import type { MoneyCurrency } from '@/lib/expenses/currency';
 import {
   EXPENSE_CATEGORIES,
+  categoryNeedsEmployee,
   formatAmount,
   monthInputValue,
   type ExpenseListItem,
@@ -23,11 +25,21 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+type TeamUser = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  surname: string | null;
+  label: string;
+};
+
 type ExpenseFormState = {
   expense_date: string;
   title: string;
   amount: string;
+  amount_currency: MoneyCurrency;
   category: string;
+  assigned_user_id: string;
   notes: string;
 };
 
@@ -35,7 +47,9 @@ const emptyForm = (): ExpenseFormState => ({
   expense_date: new Date().toISOString().slice(0, 10),
   title: '',
   amount: '',
+  amount_currency: 'PKR',
   category: 'Office',
+  assigned_user_id: '',
   notes: '',
 });
 
@@ -49,14 +63,31 @@ function shiftMonth(month: string, delta: number): string {
   return monthInputValue(date);
 }
 
-function creatorLabel(expense: ExpenseListItem): string {
-  return expense.created_by_name?.trim() || expense.created_by_email || 'Unknown user';
+function employeeLabel(expense: ExpenseListItem, teamUsers: TeamUser[]): string {
+  if (!categoryNeedsEmployee(expense.category)) {
+    return '—';
+  }
+  if (!expense.assigned_user_id) {
+    return '—';
+  }
+  const name = employeeFullName(
+    expense.assigned_user_name,
+    expense.assigned_user_surname,
+    expense.assigned_user_email,
+  );
+  if (name) {
+    return name;
+  }
+  const teamUser = teamUsers.find((user) => user.id === expense.assigned_user_id);
+  return teamUser?.label || '—';
 }
 
 export default function ExpensesPage({ permissions }: { permissions: AppPermissions }) {
   const [view, setView] = useState<'expenses' | 'software'>('expenses');
   const [month, setMonth] = useState(monthInputValue());
   const [expenses, setExpenses] = useState<ExpenseListItem[]>([]);
+  const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
+  const [softwareMonthlyTotal, setSoftwareMonthlyTotal] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -83,6 +114,7 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
         throw new Error(body?.message || 'Failed to load expenses');
       }
       setExpenses(Array.isArray(body?.expenses) ? body.expenses : []);
+      setTeamUsers(Array.isArray(body?.team_users) ? body.team_users : []);
       setTotal(typeof body?.total === 'number' ? body.total : 0);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load expenses';
@@ -93,9 +125,25 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
     }
   }, [month]);
 
+  const loadSoftwareSummary = useCallback(async () => {
+    try {
+      const res = await fetch('/api/expenses/software', { credentials: 'include' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSoftwareMonthlyTotal(typeof body?.monthly_total === 'number' ? body.monthly_total : 0);
+      }
+    } catch (e: unknown) {
+      reportError(e, { source: 'ExpensesPage.loadSoftwareSummary' });
+    }
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadSoftwareSummary();
+  }, [loadSoftwareSummary]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -110,7 +158,9 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
       expense_date: expense.expense_date,
       title: expense.title,
       amount: String(expense.amount),
+      amount_currency: 'PKR',
       category: expense.category || 'Other',
+      assigned_user_id: expense.assigned_user_id || '',
       notes: expense.notes || '',
     });
     setFormError(null);
@@ -135,7 +185,9 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
         expense_date: form.expense_date,
         title: form.title.trim(),
         amount: form.amount,
+        amount_currency: form.amount_currency,
         category: form.category || null,
+        assigned_user_id: categoryNeedsEmployee(form.category) ? form.assigned_user_id || null : null,
         notes: form.notes.trim() || null,
       };
 
@@ -200,44 +252,56 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
         <title>Expense tracker - Skyen Admin</title>
       </Head>
 
-      <PageHeader
-        title="Expense tracker"
-        description="Record monthly expenses and track which software each employee uses."
-        actions={
-          view === 'expenses' ? (
-            <OutlineFillButtonAction type="button" onClick={openCreate} icon={<Plus className="h-[15px] w-[15px]" aria-hidden />}>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-fit">
+          <button
+            type="button"
+            onClick={() => setView('expenses')}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              view === 'expenses' ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Monthly expenses
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('software')}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              view === 'software' ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Software by employee
+          </button>
+        </div>
+
+        <div className="ml-auto flex items-center gap-3">
+          {view === 'software' ? (
+            <div className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-2.5 text-right">
+              <p className="text-xs font-medium uppercase tracking-wide text-violet-700">Est. monthly software</p>
+              <p className="text-xl font-bold text-violet-900">{formatAmount(softwareMonthlyTotal)}</p>
+            </div>
+          ) : (
+            <OutlineFillButtonAction
+              type="button"
+              onClick={openCreate}
+              icon={<Plus className="h-[15px] w-[15px]" aria-hidden />}
+            >
               Add expense
             </OutlineFillButtonAction>
-          ) : null
-        }
-      />
-
-      <div className="mb-6 flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-fit">
-        <button
-          type="button"
-          onClick={() => setView('expenses')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-            view === 'expenses' ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          Monthly expenses
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('software')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-            view === 'software' ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          Software by employee
-        </button>
+          )}
+        </div>
       </div>
 
       {view === 'software' ? (
-        <EmployeeSoftwarePanel />
+        <EmployeeSoftwarePanel
+          onChanged={() => {
+            void load();
+            void loadSoftwareSummary();
+          }}
+        />
       ) : (
         <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 relative flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:min-h-[72px]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -248,7 +312,6 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
             <ChevronLeft className="h-4 w-4" />
           </button>
           <div className="min-w-[180px] text-center">
-            <p className="text-sm font-medium text-slate-500">Month</p>
             <p className="text-lg font-semibold text-slate-900">{monthLabel}</p>
           </div>
           <button
@@ -261,7 +324,7 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
           </button>
         </div>
 
-        <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-5 py-3">
+        <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-5 py-3 sm:absolute sm:right-4 sm:top-1/2 sm:-translate-y-1/2">
           <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">Monthly total</p>
           <p className="text-2xl font-bold text-cyan-900">{formatAmount(total)}</p>
         </div>
@@ -285,7 +348,7 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Title</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Category</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-700">Amount</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Added by</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Employee</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Notes</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-700">Actions</th>
                 </tr>
@@ -299,7 +362,7 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
                     <td className="px-4 py-3 font-medium text-slate-900">{expense.title}</td>
                     <td className="px-4 py-3 text-slate-600">{expense.category || '—'}</td>
                     <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatAmount(expense.amount)}</td>
-                    <td className="px-4 py-3 text-slate-600">{creatorLabel(expense)}</td>
+                    <td className="px-4 py-3 text-slate-600">{employeeLabel(expense, teamUsers)}</td>
                     <td className="px-4 py-3 text-slate-500 max-w-[220px] truncate">{expense.notes || '—'}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
@@ -348,7 +411,9 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
                 />
               </label>
               <label className="block">
-                <span className="text-xs font-medium text-slate-700">Title</span>
+                <span className="text-xs font-medium text-slate-700">
+                  {form.category === 'Software' ? 'Software name' : 'Title'}
+                </span>
                 <input
                   type="text"
                   required
@@ -356,12 +421,24 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
                   value={form.title}
                   onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  placeholder="e.g. Office supplies"
+                  placeholder={form.category === 'Software' ? 'e.g. Figma, Adobe CC, Cursor' : 'e.g. Office supplies'}
                 />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-xs font-medium text-slate-700">Amount (PKR)</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-700">Amount</span>
+                    <select
+                      value={form.amount_currency}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, amount_currency: e.target.value as MoneyCurrency }))
+                      }
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700"
+                    >
+                      <option value="PKR">PKR</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
                   <input
                     type="number"
                     required
@@ -376,7 +453,13 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
                   <span className="text-xs font-medium text-slate-700">Category</span>
                   <select
                     value={form.category}
-                    onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                        assigned_user_id: categoryNeedsEmployee(e.target.value) ? prev.assigned_user_id : '',
+                      }))
+                    }
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   >
                     {EXPENSE_CATEGORIES.map((category) => (
@@ -387,6 +470,25 @@ export default function ExpensesPage({ permissions }: { permissions: AppPermissi
                   </select>
                 </label>
               </div>
+              {categoryNeedsEmployee(form.category) && (
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700">Employee</span>
+                  <select
+                    required
+                    value={form.assigned_user_id}
+                    onChange={(e) => setForm((prev) => ({ ...prev, assigned_user_id: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">Select employee…</option>
+                    {teamUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.label}
+                        {user.email ? ` (${user.email})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className="block">
                 <span className="text-xs font-medium text-slate-700">Notes (optional)</span>
                 <textarea

@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const nextAdmin = {
       company_role:
-        typeof body.company_role === 'string' ? parsed.company_role : (existing?.company_role ?? null),
+        body.company_role !== undefined ? parsed.company_role : (existing?.company_role ?? null),
       salary: body.salary !== undefined ? parsed.salary : (existing?.salary ?? null),
     };
 

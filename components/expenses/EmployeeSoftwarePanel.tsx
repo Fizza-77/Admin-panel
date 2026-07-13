@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Monitor, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { OutlineFillButtonAction } from '@/components/ui/OutlineFillButton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { reportError } from '@/lib/monitoring';
 import { employeeFullName } from '@/lib/employees/profile';
 import { formatAmount } from '@/lib/expenses/types';
+import type { MoneyCurrency } from '@/lib/expenses/currency';
 import {
   BILLING_CYCLES,
   BILLING_CYCLE_LABELS,
   type BillingCycle,
-  type EmployeeSoftwareGroup,
   type EmployeeSoftwareItem,
 } from '@/lib/expenses/software';
 
@@ -25,6 +25,7 @@ type SoftwareFormState = {
   user_id: string;
   software_name: string;
   monthly_amount: string;
+  amount_currency: MoneyCurrency;
   billing_cycle: BillingCycle;
   notes: string;
 };
@@ -33,23 +34,37 @@ const emptyForm = (userId = ''): SoftwareFormState => ({
   user_id: userId,
   software_name: '',
   monthly_amount: '',
+  amount_currency: 'PKR',
   billing_cycle: 'monthly',
   notes: '',
 });
 
 function amountLabel(cycle: BillingCycle): string {
   if (cycle === 'yearly') {
-    return 'Yearly amount (PKR)';
+    return 'Yearly amount';
   }
   if (cycle === 'one_time') {
-    return 'One-time cost (PKR)';
+    return 'One-time cost';
   }
-  return 'Monthly amount (PKR)';
+  return 'Monthly amount';
 }
 
-export default function EmployeeSoftwarePanel() {
-  const [groups, setGroups] = useState<EmployeeSoftwareGroup[]>([]);
-  const [monthlyTotal, setMonthlyTotal] = useState(0);
+function priceLabel(item: EmployeeSoftwareItem): string {
+  if (item.monthly_amount == null) {
+    return '—';
+  }
+  const amount = formatAmount(item.monthly_amount);
+  if (item.billing_cycle === 'yearly') {
+    return `${amount}/yr`;
+  }
+  if (item.billing_cycle === 'one_time') {
+    return amount;
+  }
+  return `${amount}/mo`;
+}
+
+export default function EmployeeSoftwarePanel({ onChanged }: { onChanged?: () => void }) {
+  const [items, setItems] = useState<EmployeeSoftwareItem[]>([]);
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -61,6 +76,17 @@ export default function EmployeeSoftwarePanel() {
   const [deleteTarget, setDeleteTarget] = useState<EmployeeSoftwareItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const an = employeeFullName(a.employee_name, a.employee_surname, a.employee_email).toLowerCase();
+      const bn = employeeFullName(b.employee_name, b.employee_surname, b.employee_email).toLowerCase();
+      if (an !== bn) {
+        return an.localeCompare(bn);
+      }
+      return a.software_name.localeCompare(b.software_name);
+    });
+  }, [items]);
+
   const load = useCallback(async () => {
     setLoadError(null);
     setLoading(true);
@@ -70,8 +96,7 @@ export default function EmployeeSoftwarePanel() {
       if (!res.ok) {
         throw new Error(body?.message || 'Failed to load software');
       }
-      setGroups(Array.isArray(body?.groups) ? body.groups : []);
-      setMonthlyTotal(typeof body?.monthly_total === 'number' ? body.monthly_total : 0);
+      setItems(Array.isArray(body?.items) ? body.items : []);
       setTeamUsers(Array.isArray(body?.team_users) ? body.team_users : []);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load software';
@@ -99,6 +124,7 @@ export default function EmployeeSoftwarePanel() {
       user_id: item.user_id,
       software_name: item.software_name,
       monthly_amount: item.monthly_amount != null ? String(item.monthly_amount) : '',
+      amount_currency: 'PKR',
       billing_cycle: item.billing_cycle,
       notes: item.notes ?? '',
     });
@@ -115,6 +141,7 @@ export default function EmployeeSoftwarePanel() {
         user_id: form.user_id,
         software_name: form.software_name.trim(),
         monthly_amount: form.monthly_amount.trim() || null,
+        amount_currency: form.amount_currency,
         billing_cycle: form.billing_cycle,
         notes: form.notes.trim() || null,
       };
@@ -125,6 +152,7 @@ export default function EmployeeSoftwarePanel() {
         ? {
             software_name: payload.software_name,
             monthly_amount: payload.monthly_amount,
+            amount_currency: payload.amount_currency,
             billing_cycle: payload.billing_cycle,
             notes: payload.notes,
           }
@@ -144,6 +172,7 @@ export default function EmployeeSoftwarePanel() {
       setFormOpen(false);
       setEditingItem(null);
       await load();
+      onChanged?.();
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Failed to save');
       reportError(err, { source: 'EmployeeSoftwarePanel.submitForm' });
@@ -168,6 +197,7 @@ export default function EmployeeSoftwarePanel() {
       }
       setDeleteTarget(null);
       await load();
+      onChanged?.();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to delete');
       reportError(err, { source: 'EmployeeSoftwarePanel.confirmDelete' });
@@ -179,98 +209,73 @@ export default function EmployeeSoftwarePanel() {
   return (
     <>
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-slate-200 px-5 py-3 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Monitor className="h-5 w-5 text-cyan-600" aria-hidden />
-            <h2 className="text-lg font-semibold text-slate-900">Software by employee</h2>
-          </div>
-          <span className="text-sm text-slate-500">Track which tools each person uses</span>
-          <div className="ml-auto flex items-center gap-3">
-            <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-1.5 text-right">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-violet-700">Est. monthly software</p>
-              <p className="text-sm font-bold text-violet-900">{formatAmount(monthlyTotal)}</p>
-            </div>
-            <OutlineFillButtonAction
-              type="button"
-              onClick={() => openCreate()}
-              icon={<Plus className="h-[15px] w-[15px]" aria-hidden />}
-              className="!text-xs"
-            >
-              Add software
-            </OutlineFillButtonAction>
-          </div>
+        <div className="border-b border-slate-200 px-5 py-3 flex justify-end">
+          <OutlineFillButtonAction
+            type="button"
+            onClick={() => openCreate()}
+            icon={<Plus className="h-[15px] w-[15px]" aria-hidden />}
+            className="!text-xs"
+          >
+            Add software
+          </OutlineFillButtonAction>
         </div>
 
         {loadError ? (
           <p className="p-5 text-red-600">{loadError}</p>
         ) : loading ? (
           <p className="p-6 text-slate-500">Loading software assignments…</p>
-        ) : groups.length === 0 ? (
+        ) : sortedItems.length === 0 ? (
           <p className="p-6 text-slate-500">
             No software tracked yet. Add tools like Figma, Adobe, Cursor, or Jira for each employee.
           </p>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {groups.map((group) => {
-              const name = employeeFullName(group.employee_name, group.employee_surname, group.employee_email);
-              return (
-                <div key={group.user_id} className="px-5 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{name}</h3>
-                      <p className="text-xs text-slate-500">{group.employee_email ?? '—'}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-700">
-                        {formatAmount(group.monthly_total)}/mo est.
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => openCreate(group.user_id)}
-                        className="text-xs font-medium text-cyan-700 hover:text-cyan-800"
-                      >
-                        + Add
-                      </button>
-                    </div>
-                  </div>
-                  <ul className="space-y-2">
-                    {group.items.map((item) => (
-                      <li
-                        key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-medium text-slate-900">{item.software_name}</p>
-                          <p className="text-xs text-slate-500">
-                            {BILLING_CYCLE_LABELS[item.billing_cycle]}
-                            {item.monthly_amount != null ? ` · ${formatAmount(item.monthly_amount)}` : ''}
-                            {item.notes ? ` · ${item.notes}` : ''}
-                          </p>
-                        </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700">Employee</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700">Software</th>
+                  <th className="px-5 py-3 text-right font-semibold text-slate-700">Amount</th>
+                  <th className="px-5 py-3 text-right font-semibold text-slate-700 w-24">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sortedItems.map((item) => {
+                  const employeeName = employeeFullName(
+                    item.employee_name,
+                    item.employee_surname,
+                    item.employee_email,
+                  );
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/80">
+                      <td className="px-5 py-3 font-medium text-slate-900">{employeeName}</td>
+                      <td className="px-5 py-3 text-slate-700">{item.software_name}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-slate-900">{priceLabel(item)}</td>
+                      <td className="px-5 py-3 text-right">
                         <div className="inline-flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => openEdit(item)}
-                            className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-white"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                            aria-label={`Edit ${item.software_name}`}
                           >
-                            <Pencil className="h-3 w-3" />
-                            Edit
+                            <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(item)}
-                            className="inline-flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 hover:bg-red-100"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700"
+                            aria-label={`Delete ${item.software_name}`}
                           >
-                            <Trash2 className="h-3 w-3" />
-                            Remove
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -331,7 +336,19 @@ export default function EmployeeSoftwarePanel() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-xs font-medium text-slate-700">{amountLabel(form.billing_cycle)}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-700">{amountLabel(form.billing_cycle)}</span>
+                    <select
+                      value={form.amount_currency}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, amount_currency: e.target.value as MoneyCurrency }))
+                      }
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700"
+                    >
+                      <option value="PKR">PKR</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
                   <input
                     type="number"
                     min="0"

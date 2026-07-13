@@ -11,6 +11,22 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
+export const EXPENSE_CATEGORIES_WITH_EMPLOYEE = [
+  'Software',
+  'Payroll',
+  'Equipment',
+  'Marketing',
+] as const;
+
+export type ExpenseCategoryWithEmployee = (typeof EXPENSE_CATEGORIES_WITH_EMPLOYEE)[number];
+
+export function categoryNeedsEmployee(category: string | null | undefined): category is ExpenseCategoryWithEmployee {
+  if (!category) {
+    return false;
+  }
+  return (EXPENSE_CATEGORIES_WITH_EMPLOYEE as readonly string[]).includes(category);
+}
+
 export type ExpenseRow = {
   id: string;
   expense_date: string;
@@ -19,6 +35,8 @@ export type ExpenseRow = {
   category: string | null;
   notes: string | null;
   created_by: string;
+  assigned_user_id: string | null;
+  employee_software_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -26,6 +44,9 @@ export type ExpenseRow = {
 export type ExpenseListItem = ExpenseRow & {
   created_by_name: string | null;
   created_by_email: string | null;
+  assigned_user_name: string | null;
+  assigned_user_surname: string | null;
+  assigned_user_email: string | null;
 };
 
 export function monthInputValue(date = new Date()): string {
