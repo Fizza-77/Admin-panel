@@ -43,7 +43,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .select(EXPENSE_BASE_SELECT_COLUMNS)
         .eq('id', expenseId)
         .maybeSingle();
-      existing = fallback.data;
+      existing = fallback.data
+        ? {
+            ...fallback.data,
+            assigned_user_id: null,
+            employee_software_id: null,
+          }
+        : null;
       loadError = fallback.error;
     }
 

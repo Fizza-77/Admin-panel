@@ -182,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const expenses = (data ?? [])
-      .map((row) => mapExpenseRow(row as Record<string, unknown>))
+      .map((row) => mapExpenseRow(row as unknown as Record<string, unknown>))
       .filter((row): row is ExpenseListItem => row !== null);
 
     const enriched = await enrichExpenses(expenses, team.users);
@@ -273,7 +273,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .insert(fallbackPayload)
         .select(EXPENSE_BASE_SELECT_COLUMNS)
         .single();
-      data = fallback.data;
+      data = fallback.data
+        ? {
+            ...fallback.data,
+            assigned_user_id: assigned_user_id ?? null,
+            employee_software_id: employee_software_id ?? null,
+          }
+        : null;
       error = fallback.error;
     }
 
@@ -293,7 +299,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     await syncSoftwareExpenseAfterSoftwareChange(auth.userId, expenseMonthFromDate(expense_date));
 
-    const mapped = mapExpenseRow(data as Record<string, unknown>);
+    const mapped = mapExpenseRow(data as unknown as Record<string, unknown>);
     if (!mapped) {
       return res.status(500).json({ message: 'Created expense could not be read' });
     }

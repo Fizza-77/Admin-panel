@@ -18,7 +18,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { rows, error } = await listPayrollEmployees();
   if (error || !rows) {
     reportError(error ?? new Error('listPayrollEmployees failed'), { source: 'api/payroll GET' });
-    return res.status(500).json({ message: error?.message || 'Failed to load payroll employees' });
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : 'Failed to load payroll employees',
+    });
   }
 
   const period = getCurrentPayPeriod();
