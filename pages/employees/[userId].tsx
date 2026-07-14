@@ -10,6 +10,7 @@ import { LoadingOverlay } from '@/components/ui/Spinner';
 import { reportError } from '@/lib/monitoring';
 import { canMarkTeamAttendance } from '@/lib/permissions/attendanceAccess';
 import AttendanceReports from '@/components/attendance/AttendanceReports';
+import EmployeeExpensesPanel from '@/components/expenses/EmployeeExpensesPanel';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { userDisplayLabel } from '@/lib/users/display';
 import {
@@ -26,6 +27,7 @@ import {
   formatEmployeeSalary,
   type EmployeeProfile,
 } from '@/lib/employees/profile';
+import { formatAmount } from '@/lib/expenses/types';
 
 export const getServerSideProps = requireAuthentication(
   requirePermission({ attendance: true }, async () => ({ props: {} })),
@@ -186,6 +188,9 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
   const [monthTo, setMonthTo] = useState<string | null>(null);
   const [monthRecords, setMonthRecords] = useState<AttendanceRecordSlice[]>([]);
   const [yearLeaveRecords, setYearLeaveRecords] = useState<AttendanceRecordSlice[]>([]);
+  const [expenseTotal, setExpenseTotal] = useState<number | null>(null);
+
+  const canManageExpenses = permissions.canManageExpenses;
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -288,6 +293,10 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
     void loadReports(month);
   }, [loadReports, month, userId]);
 
+  useEffect(() => {
+    setExpenseTotal(null);
+  }, [month, userId]);
+
   const saveAdminField = async (patch: { company_role?: string | null; salary?: string | null }) => {
     if (!userId) {
       return;
@@ -385,10 +394,26 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
                     <ProfileField label="Salary" value={formatEmployeeSalary(employee.salary)} />
                   </>
                 )}
+                {canManageExpenses && (
+                  <ProfileField
+                    label={`Total expenses (${monthLabel})`}
+                    value={expenseTotal != null ? formatAmount(expenseTotal) : '—'}
+                  />
+                )}
               </div>
             </div>
           </section>
         ) : null}
+
+        {canManageExpenses && userId && employee && (
+          <EmployeeExpensesPanel
+            userId={userId}
+            month={month}
+            monthLabel={monthLabel}
+            employeeName={fullName}
+            onTotalChange={setExpenseTotal}
+          />
+        )}
 
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="border-b border-slate-100 px-4 py-4 sm:px-5">

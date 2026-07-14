@@ -3,6 +3,7 @@ import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { reportError } from '@/lib/monitoring';
 import { listPayrollEmployees } from '@/lib/payroll/listPayrollEmployees';
 import { buildPayrollReceiptData, generatePayrollReceiptPdf, payrollReceiptFilename } from '@/lib/payroll/receipt';
+import { parsePayrollMonthQuery } from '@/lib/payroll/payPeriod';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const auth = await requireApiPermission(req, res, { attendance: true });
@@ -20,9 +21,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { rows, error } = await listPayrollEmployees();
+  const month = parsePayrollMonthQuery(req.query.month);
+  const { rows, error } = await listPayrollEmployees(month);
   if (error || !rows) {
-    reportError(error ?? new Error('listPayrollEmployees failed'), { source: 'api/payroll receipt GET', userId });
+    reportError(error ?? new Error('listPayrollEmployees failed'), { source: 'api/payroll receipt GET', userId, month });
     return res.status(500).json({ message: 'Failed to load employee' });
   }
 
@@ -32,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const receiptData = buildPayrollReceiptData(employee);
+    const receiptData = buildPayrollReceiptData(employee, month);
     const pdfBuffer = await generatePayrollReceiptPdf(receiptData);
     const filename = payrollReceiptFilename(receiptData);
 
@@ -41,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Content-Length', pdfBuffer.length);
     return res.status(200).send(pdfBuffer);
   } catch (err) {
-    reportError(err, { source: 'api/payroll receipt PDF', userId });
+    reportError(err, { source: 'api/payroll receipt PDF', userId, month });
     return res.status(500).json({ message: 'Failed to generate receipt' });
   }
 }

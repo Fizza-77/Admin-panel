@@ -4,6 +4,7 @@ type StatCircleProps = {
   sublabel?: string;
   percent?: number;
   accent?: 'green' | 'red' | 'yellow' | 'blue' | 'slate' | 'cyan';
+  currencySymbol?: string;
 };
 
 const ACCENT: Record<NonNullable<StatCircleProps['accent']>, string> = {
@@ -21,6 +22,7 @@ export default function StatCircle({
   sublabel,
   percent,
   accent = 'cyan',
+  currencySymbol,
 }: StatCircleProps) {
   const color = ACCENT[accent];
   const ring = typeof percent === 'number' ? Math.min(100, Math.max(0, percent)) : 0;
@@ -56,7 +58,8 @@ export default function StatCircle({
             />
           )}
         </svg>
-        <div className="att-stat-circle-value">
+        <div className={`att-stat-circle-value${currencySymbol ? ' att-stat-circle-value--currency' : ''}`}>
+          {currencySymbol && <span className="att-stat-circle-currency">{currencySymbol}</span>}
           <span className="att-stat-circle-number">{value}</span>
         </div>
       </div>

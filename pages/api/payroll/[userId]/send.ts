@@ -4,6 +4,7 @@ import { reportError } from '@/lib/monitoring';
 import { sendPayrollReceiptEmail } from '@/lib/email/payrollReceiptEmail';
 import { listPayrollEmployees } from '@/lib/payroll/listPayrollEmployees';
 import { buildPayrollReceiptData, generatePayrollReceiptPdf } from '@/lib/payroll/receipt';
+import { parsePayrollMonthQuery } from '@/lib/payroll/payPeriod';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const auth = await requireApiPermission(req, res, { attendance: true });
@@ -21,9 +22,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { rows, error } = await listPayrollEmployees();
+  const month =
+    typeof req.body?.month === 'string'
+      ? parsePayrollMonthQuery(req.body.month)
+      : parsePayrollMonthQuery(req.query.month);
+
+  const { rows, error } = await listPayrollEmployees(month);
   if (error || !rows) {
-    reportError(error ?? new Error('listPayrollEmployees failed'), { source: 'api/payroll send POST', userId });
+    reportError(error ?? new Error('listPayrollEmployees failed'), { source: 'api/payroll send POST', userId, month });
     return res.status(500).json({ message: 'Failed to load employee' });
   }
 
@@ -38,19 +44,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const receiptData = buildPayrollReceiptData(employee);
+    const receiptData = buildPayrollReceiptData(employee, month);
     const pdfBuffer = await generatePayrollReceiptPdf(receiptData);
     await sendPayrollReceiptEmail(email, receiptData, pdfBuffer);
 
     return res.status(200).json({
       ok: true,
       message: `Receipt sent to ${email}`,
+      month,
       pay_month: receiptData.payMonthName,
       pay_period: receiptData.payPeriodLabel,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to send receipt';
-    reportError(err, { source: 'api/payroll send', userId, email });
+    reportError(err, { source: 'api/payroll send', userId, email, month });
     return res.status(500).json({ message });
   }
 }

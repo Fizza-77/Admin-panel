@@ -5,7 +5,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { reportError } from '@/lib/monitoring';
 import { employeeFullName } from '@/lib/employees/profile';
 import { formatAmount } from '@/lib/expenses/types';
-import type { MoneyCurrency } from '@/lib/expenses/currency';
+import { EXPENSE_MONEY_CURRENCIES, type MoneyCurrency } from '@/lib/expenses/currency';
 import {
   BILLING_CYCLES,
   BILLING_CYCLE_LABELS,
@@ -345,8 +345,11 @@ export default function EmployeeSoftwarePanel({ onChanged }: { onChanged?: () =>
                       }
                       className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700"
                     >
-                      <option value="PKR">PKR</option>
-                      <option value="USD">USD</option>
+                      {EXPENSE_MONEY_CURRENCIES.map((currency) => (
+                        <option key={currency.value} value={currency.value}>
+                          {currency.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <input

@@ -3,6 +3,13 @@ import { supabase } from '@/lib/supabase/server';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { fetchAppProfileRow, updateEmployeeAdminProfile } from '@/lib/permissions/appProfileDb';
 import { mapEmployeeProfile, normalizeAdminInput } from '@/lib/employees/profile';
+import {
+  clearPayrollExpenseExclusionsFromMonth,
+  removePayrollExpensesForEmployeeFromMonth,
+  syncPayrollExpensesFromMonth,
+} from '@/lib/expenses/payrollExpenseSync';
+import { clearPayrollDeductionsFromMonth } from '@/lib/payroll/deductions';
+import { monthInputValue } from '@/lib/expenses/types';
 import { formatDbError } from '@/lib/db/errors';
 import { reportError } from '@/lib/monitoring';
 
@@ -58,6 +65,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!result.ok) {
       reportError(result.error, { source: 'api/employees PATCH update', userId });
       return res.status(500).json({ message: formatDbError(result.error) });
+    }
+
+    if (body.salary !== undefined) {
+      const month = monthInputValue();
+      const nextSalary = nextAdmin.salary;
+      if (nextSalary == null || nextSalary <= 0) {
+        await removePayrollExpensesForEmployeeFromMonth(userId, month);
+        await clearPayrollDeductionsFromMonth(userId, month);
+      } else {
+        // Re-adding/updating salary revives payroll from this month forward (not past months).
+        await clearPayrollExpenseExclusionsFromMonth(userId, month);
+        await syncPayrollExpensesFromMonth(month, auth.userId);
+      }
     }
 
     const { row: updated } = await fetchAppProfileRow(userId);

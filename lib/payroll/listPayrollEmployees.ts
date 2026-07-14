@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase/server';
 import { ensureAppProfileRowsForUserIds } from '@/lib/permissions/appProfileDb';
 import type { PayrollEmployeeRow } from '@/lib/payroll/types';
+import { loadPayrollDeductionsForMonth, netSalaryAfterDeduction } from '@/lib/payroll/deductions';
+import { monthInputValue } from '@/lib/expenses/types';
 
 async function listAllAuthUsers() {
   const users: Array<{ id: string; email?: string }> = [];
@@ -28,7 +30,7 @@ async function listAllAuthUsers() {
   return { users, error: null };
 }
 
-export async function listPayrollEmployees(): Promise<{
+export async function listPayrollEmployees(month = monthInputValue()): Promise<{
   rows: PayrollEmployeeRow[] | null;
   error: unknown;
 }> {
@@ -38,7 +40,10 @@ export async function listPayrollEmployees(): Promise<{
   }
 
   const ids = users.map((user) => user.id);
-  const { byUserId, error: profileError, stillMissingUserIds } = await ensureAppProfileRowsForUserIds(ids);
+  const [{ byUserId, error: profileError, stillMissingUserIds }, deductions] = await Promise.all([
+    ensureAppProfileRowsForUserIds(ids),
+    loadPayrollDeductionsForMonth(month),
+  ]);
   if (profileError || stillMissingUserIds.length > 0) {
     return {
       rows: null,
@@ -51,6 +56,10 @@ export async function listPayrollEmployees(): Promise<{
     const salaryRaw = profile?.salary;
     const salary =
       salaryRaw != null && Number.isFinite(Number(salaryRaw)) ? Number(salaryRaw) : null;
+    const hasSalary = salary != null && salary > 0;
+    // Deductions only apply while a profile salary is set.
+    const deduction = hasSalary ? deductions.get(user.id) ?? 0 : 0;
+    const net_salary = netSalaryAfterDeduction(salary, deduction);
 
     return {
       user_id: user.id,
@@ -59,6 +68,8 @@ export async function listPayrollEmployees(): Promise<{
       surname: profile?.surname ?? null,
       company_role: profile?.company_role ?? null,
       salary,
+      deduction,
+      net_salary,
       avatar_url: profile?.avatar_url ?? null,
       contact_info: profile?.contact_info ?? null,
       qualification: profile?.qualification ?? null,

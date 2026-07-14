@@ -3,7 +3,7 @@ import type PDFKit from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { employeeFullName, formatEmployeeSalary } from '@/lib/employees/profile';
-import { getCurrentPayPeriod } from '@/lib/payroll/payPeriod';
+import { getCurrentPayPeriod, getPayPeriodForMonth } from '@/lib/payroll/payPeriod';
 import type { PayrollEmployeeRow, PayrollReceiptData } from '@/lib/payroll/types';
 
 const COMPANY_NAME = 'Skyen Systems';
@@ -38,10 +38,15 @@ function shortEmployeeId(userId: string): string {
 
 export function buildPayrollReceiptData(
   employee: PayrollEmployeeRow,
-  now = new Date(),
+  monthOrNow?: string | Date,
 ): PayrollReceiptData {
-  const period = getCurrentPayPeriod(now);
+  const period =
+    typeof monthOrNow === 'string'
+      ? getPayPeriodForMonth(monthOrNow) ?? getCurrentPayPeriod()
+      : getCurrentPayPeriod(monthOrNow instanceof Date ? monthOrNow : undefined);
   const employeeName = employeeFullName(employee.display_name, employee.surname, employee.email);
+  const deduction = (employee.deduction ?? 0) > 0 ? employee.deduction : 0;
+  const netAmount = employee.net_salary ?? employee.salary;
 
   return {
     companyName: COMPANY_NAME,
@@ -56,6 +61,10 @@ export function buildPayrollReceiptData(
     paymentDate: period.paymentDate,
     salaryAmount: employee.salary,
     salaryFormatted: formatEmployeeSalary(employee.salary),
+    deductionAmount: deduction,
+    deductionFormatted: formatEmployeeSalary(deduction > 0 ? deduction : null),
+    netAmount,
+    netFormatted: formatEmployeeSalary(netAmount),
     referenceNumber: `PR-${period.payPeriodCode.replace('-', '')}-${shortEmployeeId(employee.user_id)}`,
   };
 }
@@ -165,6 +174,11 @@ export function generatePayrollReceiptPdf(data: PayrollReceiptData): Promise<Buf
     sy += 12;
     const salaryRowY = sy;
     sy += 24;
+    const hasDeduction = data.deductionAmount > 0;
+    const deductionRowY = hasDeduction ? sy : null;
+    if (hasDeduction) {
+      sy += 24;
+    }
     const totalLineY = sy;
     sy += 12;
     const netRowY = sy;
@@ -197,6 +211,15 @@ export function generatePayrollReceiptPdf(data: PayrollReceiptData): Promise<Buf
     });
     doc.text(data.salaryFormatted, amountColX, salaryRowY, { width: amountColWidth, align: 'right' });
 
+    if (hasDeduction && deductionRowY != null) {
+      doc.font('Helvetica').fontSize(11).fillColor('#b91c1c');
+      doc.text('Salary deduction', left + summaryPad, deductionRowY, { width: descColWidth });
+      doc.text(`- ${data.deductionFormatted}`, amountColX, deductionRowY, {
+        width: amountColWidth,
+        align: 'right',
+      });
+    }
+
     doc
       .moveTo(left + summaryPad, totalLineY)
       .lineTo(left + pageWidth - summaryPad, totalLineY)
@@ -205,7 +228,7 @@ export function generatePayrollReceiptPdf(data: PayrollReceiptData): Promise<Buf
 
     doc.font('Helvetica-Bold').fontSize(12).fillColor('#0f172a');
     doc.text('Net amount paid', left + summaryPad, netRowY);
-    doc.text(data.salaryFormatted, amountColX, netRowY, { width: amountColWidth, align: 'right' });
+    doc.text(data.netFormatted, amountColX, netRowY, { width: amountColWidth, align: 'right' });
 
     y = summaryTop + summaryHeight + 24;
 

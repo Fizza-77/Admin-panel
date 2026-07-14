@@ -13,6 +13,7 @@ import type { AttendanceRow, AttendanceStatus } from '@/lib/attendance/types';
 import { ATTENDANCE_STATUS_LABELS, todayDateInputValue } from '@/lib/attendance/types';
 import { OFF_DAY_LABEL } from '@/lib/attendance/workingDays';
 import { formatLateHours } from '@/lib/attendance/reports';
+import { formatAmount, monthInputValue } from '@/lib/expenses/types';
 
 const getStatusLabel = (row: AttendanceRow, isWorkingDay: boolean): string => {
   if (!isWorkingDay) {
@@ -38,6 +39,26 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
   const [isWorkingDay, setIsWorkingDay] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [expenseTotals, setExpenseTotals] = useState<Record<string, number>>({});
+  const expenseMonth = monthInputValue();
+  const canManageExpenses = permissions.canManageExpenses;
+
+  const loadExpenseTotals = useCallback(async () => {
+    if (!canManageExpenses) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/employees/expense-totals?month=${encodeURIComponent(expenseMonth)}`, {
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body?.totals && typeof body.totals === 'object') {
+        setExpenseTotals(body.totals as Record<string, number>);
+      }
+    } catch (e: unknown) {
+      reportError(e, { source: 'EmployeesPage.loadExpenseTotals', month: expenseMonth });
+    }
+  }, [canManageExpenses, expenseMonth]);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -65,7 +86,8 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadExpenseTotals();
+  }, [load, loadExpenseTotals]);
 
   const openEmployee = (userId: string) => {
     void router.push(`/employees/${encodeURIComponent(userId)}`);
@@ -85,7 +107,7 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
           <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
             <h1 className="text-lg font-semibold text-slate-900">All Employees</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              Click an employee to view their profile, role, salary, and attendance report.
+              Click an employee to view their profile, role, salary, expenses, and attendance report.
             </p>
           </div>
 
@@ -99,6 +121,9 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
+                    {canManageExpenses && (
+                      <th className="px-4 py-3 text-right font-semibold text-slate-700">Monthly expenses</th>
+                    )}
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Today</th>
                   </tr>
                 </thead>
@@ -133,6 +158,11 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
                         </td>
                         <td className="px-4 py-3 text-slate-600">{row.company_role?.trim() || '—'}</td>
                         <td className="px-4 py-3 text-slate-600">{row.email ?? '—'}</td>
+                        {canManageExpenses && (
+                          <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                            {formatAmount(expenseTotals[row.user_id] ?? 0)}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-slate-600">{label}</td>
                       </tr>
                     );
