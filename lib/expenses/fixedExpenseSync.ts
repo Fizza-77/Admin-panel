@@ -258,7 +258,7 @@ export async function demoteFixedExpenseToOneTime(params: {
       source: 'demoteFixedExpenseToOneTime.unlinkPast',
       templateId: params.templateId,
     });
-    return { data: data as Record<string, unknown>, error: unlinkError };
+    return { data: data as unknown as Record<string, unknown>, error: unlinkError };
   }
 
   if (params.templateId !== params.expenseId) {
@@ -276,7 +276,7 @@ export async function demoteFixedExpenseToOneTime(params: {
           source: 'demoteFixedExpenseToOneTime.deleteTemplate',
           templateId: params.templateId,
         });
-        return { data: data as Record<string, unknown>, error: deleteTemplateError };
+        return { data: data as unknown as Record<string, unknown>, error: deleteTemplateError };
       }
     } else if (templateMonth && templateMonth <= params.demotionMonth) {
       // No monthly copy for the start month — keep the former template as that month's one-time row.
@@ -293,12 +293,12 @@ export async function demoteFixedExpenseToOneTime(params: {
           source: 'demoteFixedExpenseToOneTime.demoteTemplate',
           templateId: params.templateId,
         });
-        return { data: data as Record<string, unknown>, error: demoteTemplateError };
+        return { data: data as unknown as Record<string, unknown>, error: demoteTemplateError };
       }
     }
   }
 
-  return { data: data as Record<string, unknown>, error: null };
+  return { data: data as unknown as Record<string, unknown>, error: null };
 }
 
 /** Ensure each fixed expense template appears in the given month's expense list. */
