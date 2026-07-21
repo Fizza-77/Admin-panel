@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { resolveAdminUserContextFromApi } from '@/lib/auth/resolveUserContext';
+import { canAccessPayroll } from './payrollAccess';
+import { canAccessEmployeesDirectory, canSetEmployeeProfiles } from './profileAccess';
 import type { AppPermissions } from './types';
 
 export type ApiPermissionResult =
@@ -12,7 +14,16 @@ export type ApiPermissionResult =
 export async function requireApiPermission(
   req: NextApiRequest,
   res: NextApiResponse | undefined,
-  needs: { blogs?: boolean; tasks?: boolean; users?: boolean; attendance?: boolean; expenses?: boolean },
+  needs: {
+    blogs?: boolean;
+    tasks?: boolean;
+    users?: boolean;
+    attendance?: boolean;
+    expenses?: boolean;
+    profiles?: boolean;
+    employees?: boolean;
+    payroll?: boolean;
+  },
 ): Promise<ApiPermissionResult> {
   const ctx = await resolveAdminUserContextFromApi(req, res);
   if (!ctx) {
@@ -43,6 +54,15 @@ export async function requireApiPermission(
   }
   if (needs.expenses && !permissions.canManageExpenses && !permissions.isPrimaryAdmin) {
     return { ok: false, status: 403, message: 'You do not have access to the expense tracker.' };
+  }
+  if (needs.profiles && !canSetEmployeeProfiles(permissions)) {
+    return { ok: false, status: 403, message: 'You do not have access to set employee profiles.' };
+  }
+  if (needs.employees && !canAccessEmployeesDirectory(permissions)) {
+    return { ok: false, status: 403, message: 'You do not have access to the employees directory.' };
+  }
+  if (needs.payroll && !canAccessPayroll(permissions)) {
+    return { ok: false, status: 403, message: 'You do not have access to payroll.' };
   }
 
   return { ok: true, userId, permissions };

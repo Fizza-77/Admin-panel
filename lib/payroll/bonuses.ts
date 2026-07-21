@@ -2,9 +2,8 @@ import { supabase } from '@/lib/supabase/server';
 import { reportError } from '@/lib/monitoring';
 import { isMissingTableError } from '@/lib/db/errors';
 import { monthDateRange, monthInputValue } from '@/lib/expenses/types';
-import { getCurrentPayPeriod } from '@/lib/payroll/payPeriod';
 
-export type PayrollMonthDeduction = {
+export type PayrollMonthBonus = {
   user_id: string;
   pay_month: string;
   amount: number;
@@ -15,21 +14,21 @@ function monthStart(month = monthInputValue()): string | null {
   return monthDateRange(month)?.from ?? null;
 }
 
-/** Map of userId -> deduction amount for a pay month. */
-export async function loadPayrollDeductionsForMonth(month = monthInputValue()): Promise<Map<string, number>> {
+/** Map of userId -> bonus amount for a pay month. */
+export async function loadPayrollBonusesForMonth(month = monthInputValue()): Promise<Map<string, number>> {
   const from = monthStart(month);
   if (!from) {
     return new Map();
   }
 
   const { data, error } = await supabase
-    .from('payroll_month_deductions')
+    .from('payroll_month_bonuses')
     .select('user_id, amount')
     .eq('pay_month', from);
 
   if (error) {
-    if (!isMissingTableError(error, 'payroll_month_deductions')) {
-      reportError(error, { source: 'loadPayrollDeductionsForMonth', month });
+    if (!isMissingTableError(error, 'payroll_month_bonuses')) {
+      reportError(error, { source: 'loadPayrollBonusesForMonth', month });
     }
     return new Map();
   }
@@ -47,7 +46,7 @@ export async function loadPayrollDeductionsForMonth(month = monthInputValue()): 
   return map;
 }
 
-export async function getPayrollDeductionForUser(
+export async function getPayrollBonusForUser(
   userId: string,
   month = monthInputValue(),
 ): Promise<number> {
@@ -57,15 +56,15 @@ export async function getPayrollDeductionForUser(
   }
 
   const { data, error } = await supabase
-    .from('payroll_month_deductions')
+    .from('payroll_month_bonuses')
     .select('amount')
     .eq('user_id', userId)
     .eq('pay_month', from)
     .maybeSingle();
 
   if (error) {
-    if (!isMissingTableError(error, 'payroll_month_deductions')) {
-      reportError(error, { source: 'getPayrollDeductionForUser', userId, month });
+    if (!isMissingTableError(error, 'payroll_month_bonuses')) {
+      reportError(error, { source: 'getPayrollBonusForUser', userId, month });
     }
     return 0;
   }
@@ -74,20 +73,7 @@ export async function getPayrollDeductionForUser(
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 }
 
-export function netSalaryAfterDeduction(
-  salary: number | null | undefined,
-  deduction: number | null | undefined,
-  bonus: number | null | undefined = 0,
-): number | null {
-  if (salary == null || !Number.isFinite(salary) || salary <= 0) {
-    return null;
-  }
-  const cut = deduction != null && Number.isFinite(deduction) && deduction > 0 ? deduction : 0;
-  const add = bonus != null && Number.isFinite(bonus) && bonus > 0 ? bonus : 0;
-  return Math.max(0, Math.round((salary - cut + add) * 100) / 100);
-}
-
-export async function upsertPayrollDeduction(params: {
+export async function upsertPayrollBonus(params: {
   userId: string;
   amount: number;
   notes?: string | null;
@@ -101,7 +87,7 @@ export async function upsertPayrollDeduction(params: {
   }
 
   if (!Number.isFinite(params.amount) || params.amount < 0) {
-    return { ok: false, status: 400, message: 'Deduction must be a non-negative number' };
+    return { ok: false, status: 400, message: 'Bonus must be a non-negative number' };
   }
 
   const amount = Math.round(params.amount * 100) / 100;
@@ -111,26 +97,26 @@ export async function upsertPayrollDeduction(params: {
 
   if (amount === 0) {
     const { error } = await supabase
-      .from('payroll_month_deductions')
+      .from('payroll_month_bonuses')
       .delete()
       .eq('user_id', params.userId)
       .eq('pay_month', from);
-    if (error && !isMissingTableError(error, 'payroll_month_deductions')) {
-      reportError(error, { source: 'upsertPayrollDeduction.clear', userId: params.userId, month });
-      return { ok: false, status: 500, message: 'Failed to clear deduction' };
+    if (error && !isMissingTableError(error, 'payroll_month_bonuses')) {
+      reportError(error, { source: 'upsertPayrollBonus.clear', userId: params.userId, month });
+      return { ok: false, status: 500, message: 'Failed to clear bonus' };
     }
-    if (error && isMissingTableError(error, 'payroll_month_deductions')) {
+    if (error && isMissingTableError(error, 'payroll_month_bonuses')) {
       return {
         ok: false,
         status: 503,
         message:
-          'Payroll deductions are not set up yet. Run supabase/migrations/20260714150000_payroll_month_deductions.sql',
+          'Payroll bonuses are not set up yet. Run supabase/migrations/20260721150000_payroll_month_bonuses.sql',
       };
     }
     return { ok: true, amount: 0 };
   }
 
-  const { error } = await supabase.from('payroll_month_deductions').upsert(
+  const { error } = await supabase.from('payroll_month_bonuses').upsert(
     {
       user_id: params.userId,
       pay_month: from,
@@ -143,26 +129,26 @@ export async function upsertPayrollDeduction(params: {
   );
 
   if (error) {
-    if (isMissingTableError(error, 'payroll_month_deductions')) {
+    if (isMissingTableError(error, 'payroll_month_bonuses')) {
       return {
         ok: false,
         status: 503,
         message:
-          'Payroll deductions are not set up yet. Run supabase/migrations/20260714150000_payroll_month_deductions.sql',
+          'Payroll bonuses are not set up yet. Run supabase/migrations/20260721150000_payroll_month_bonuses.sql',
       };
     }
-    reportError(error, { source: 'upsertPayrollDeduction', userId: params.userId, month });
-    return { ok: false, status: 500, message: 'Failed to save deduction' };
+    reportError(error, { source: 'upsertPayrollBonus', userId: params.userId, month });
+    return { ok: false, status: 500, message: 'Failed to save bonus' };
   }
 
   return { ok: true, amount };
 }
 
 /**
- * Remove salary deductions for an employee from the given month onward.
- * Used when profile salary is cleared so Payroll no longer shows old cuts.
+ * Remove salary bonuses for an employee from the given month onward.
+ * Used when profile salary is cleared.
  */
-export async function clearPayrollDeductionsFromMonth(
+export async function clearPayrollBonusesFromMonth(
   userId: string,
   fromMonth: string,
 ): Promise<void> {
@@ -172,16 +158,12 @@ export async function clearPayrollDeductionsFromMonth(
   }
 
   const { error } = await supabase
-    .from('payroll_month_deductions')
+    .from('payroll_month_bonuses')
     .delete()
     .eq('user_id', userId)
     .gte('pay_month', from);
 
-  if (error && !isMissingTableError(error, 'payroll_month_deductions')) {
-    reportError(error, { source: 'clearPayrollDeductionsFromMonth', userId, fromMonth });
+  if (error && !isMissingTableError(error, 'payroll_month_bonuses')) {
+    reportError(error, { source: 'clearPayrollBonusesFromMonth', userId, fromMonth });
   }
-}
-
-export function currentPayMonthCode(): string {
-  return getCurrentPayPeriod().payPeriodCode;
 }

@@ -7,7 +7,7 @@ import { buildPayrollReceiptData, generatePayrollReceiptPdf } from '@/lib/payrol
 import { parsePayrollMonthQuery } from '@/lib/payroll/payPeriod';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const auth = await requireApiPermission(req, res, { attendance: true });
+  const auth = await requireApiPermission(req, res, { payroll: true });
   if (!auth.ok) {
     return res.status(auth.status).json({ message: auth.message });
   }

@@ -28,6 +28,8 @@ import { useSidebar } from './SidebarContext';
 import InfoDialog from '@/components/ui/InfoDialog';
 import { canMarkTeamAttendance } from '@/lib/permissions/attendanceAccess';
 import { canAccessExpenseTracker } from '@/lib/permissions/expenseAccess';
+import { canAccessEmployeesDirectory } from '@/lib/permissions/profileAccess';
+import { canAccessPayroll } from '@/lib/permissions/payrollAccess';
 import { cn } from '@/lib/ui/cn';
 
 export default function Sidebar() {
@@ -52,6 +54,8 @@ export default function Sidebar() {
   const canUsers = permissions?.canAccessUserManagement ?? false;
   const canMarkAttendance = canMarkTeamAttendance(permissions);
   const canExpenses = canAccessExpenseTracker(permissions);
+  const canEmployees = canAccessEmployeesDirectory(permissions);
+  const canPayroll = canAccessPayroll(permissions);
 
   const navItems: Array<{ name: string; href: string; icon: typeof LayoutDashboard }> = [];
   if (canBlogs) {
@@ -61,12 +65,14 @@ export default function Sidebar() {
   if (canTasks) {
     navItems.push({ name: 'Tasks', href: '/tasks', icon: CheckSquare });
   }
-  if (!canMarkAttendance) {
-    navItems.push({ name: 'My attendance', href: '/attendance', icon: CalendarCheck });
-  }
+  navItems.push({ name: 'My attendance', href: '/attendance', icon: CalendarCheck });
   if (canMarkAttendance) {
     navItems.push({ name: 'Mark attendance', href: '/attendance/manage', icon: ClipboardList });
+  }
+  if (canEmployees) {
     navItems.push({ name: 'All Employees', href: '/employees', icon: UserRound });
+  }
+  if (canPayroll) {
     navItems.push({ name: 'Payroll', href: '/payroll', icon: Banknote });
   }
   if (canExpenses) {

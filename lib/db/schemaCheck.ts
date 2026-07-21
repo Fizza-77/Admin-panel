@@ -8,6 +8,8 @@ export const APP_PROFILE_PERMISSION_COLUMNS = [
   'can_manage_users',
   'can_manage_attendance',
   'can_manage_expenses',
+  'can_manage_profiles',
+  'can_manage_payroll',
   'display_name',
   'surname',
   'qualification',

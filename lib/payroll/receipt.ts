@@ -46,6 +46,7 @@ export function buildPayrollReceiptData(
       : getCurrentPayPeriod(monthOrNow instanceof Date ? monthOrNow : undefined);
   const employeeName = employeeFullName(employee.display_name, employee.surname, employee.email);
   const deduction = (employee.deduction ?? 0) > 0 ? employee.deduction : 0;
+  const bonus = (employee.bonus ?? 0) > 0 ? employee.bonus : 0;
   const netAmount = employee.net_salary ?? employee.salary;
 
   return {
@@ -63,6 +64,8 @@ export function buildPayrollReceiptData(
     salaryFormatted: formatEmployeeSalary(employee.salary),
     deductionAmount: deduction,
     deductionFormatted: formatEmployeeSalary(deduction > 0 ? deduction : null),
+    bonusAmount: bonus,
+    bonusFormatted: formatEmployeeSalary(bonus > 0 ? bonus : null),
     netAmount,
     netFormatted: formatEmployeeSalary(netAmount),
     referenceNumber: `PR-${period.payPeriodCode.replace('-', '')}-${shortEmployeeId(employee.user_id)}`,
@@ -175,8 +178,13 @@ export function generatePayrollReceiptPdf(data: PayrollReceiptData): Promise<Buf
     const salaryRowY = sy;
     sy += 24;
     const hasDeduction = data.deductionAmount > 0;
+    const hasBonus = data.bonusAmount > 0;
     const deductionRowY = hasDeduction ? sy : null;
     if (hasDeduction) {
+      sy += 24;
+    }
+    const bonusRowY = hasBonus ? sy : null;
+    if (hasBonus) {
       sy += 24;
     }
     const totalLineY = sy;
@@ -215,6 +223,15 @@ export function generatePayrollReceiptPdf(data: PayrollReceiptData): Promise<Buf
       doc.font('Helvetica').fontSize(11).fillColor('#b91c1c');
       doc.text('Salary deduction', left + summaryPad, deductionRowY, { width: descColWidth });
       doc.text(`- ${data.deductionFormatted}`, amountColX, deductionRowY, {
+        width: amountColWidth,
+        align: 'right',
+      });
+    }
+
+    if (hasBonus && bonusRowY != null) {
+      doc.font('Helvetica').fontSize(11).fillColor('#047857');
+      doc.text('Bonus', left + summaryPad, bonusRowY, { width: descColWidth });
+      doc.text(`+ ${data.bonusFormatted}`, amountColX, bonusRowY, {
         width: amountColWidth,
         align: 'right',
       });

@@ -7,6 +7,8 @@ import { clearSessionCookieHeaders } from '@/lib/auth/sessionCookies';
 import { reportError } from '@/lib/monitoring';
 import { resolveAdminUserContextFromGssp } from '@/lib/auth/resolveUserContext';
 import type { AppPermissions } from '@/lib/permissions/types';
+import { canAccessEmployeesDirectory, canSetEmployeeProfiles } from '@/lib/permissions/profileAccess';
+import { canAccessPayroll } from '@/lib/permissions/payrollAccess';
 import { redirectWhenBlogDenied, redirectWhenTaskDenied } from '@/lib/permissions/redirects';
 
 import {
@@ -151,7 +153,16 @@ type GsspWithPermissions = (
  * Chain inside `requireAuthentication`: `requireAuthentication(requirePermission({ blogs: true }, gssp))`.
  */
 export function requirePermission(
-  needs: { blogs?: boolean; tasks?: boolean; users?: boolean; attendance?: boolean; expenses?: boolean },
+  needs: {
+    blogs?: boolean;
+    tasks?: boolean;
+    users?: boolean;
+    attendance?: boolean;
+    expenses?: boolean;
+    profiles?: boolean;
+    employees?: boolean;
+    payroll?: boolean;
+  },
   gssp: GsspWithPermissions,
 ) {
   return async (context: GetServerSidePropsContext) => {
@@ -210,6 +221,30 @@ export function requirePermission(
       };
     }
     if (needs.expenses && !permissions.canManageExpenses && !permissions.isPrimaryAdmin) {
+      return {
+        redirect: {
+          destination: '/unauthorized',
+          permanent: false,
+        },
+      };
+    }
+    if (needs.profiles && !canSetEmployeeProfiles(permissions)) {
+      return {
+        redirect: {
+          destination: '/unauthorized',
+          permanent: false,
+        },
+      };
+    }
+    if (needs.employees && !canAccessEmployeesDirectory(permissions)) {
+      return {
+        redirect: {
+          destination: '/unauthorized',
+          permanent: false,
+        },
+      };
+    }
+    if (needs.payroll && !canAccessPayroll(permissions)) {
       return {
         redirect: {
           destination: '/unauthorized',

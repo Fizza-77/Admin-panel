@@ -1,5 +1,8 @@
 /** Build breadcrumb trail from Next.js pathname segments. */
 export function breadcrumbsFromPath(pathname: string): { label: string; href?: string }[] {
+  if (pathname === '/tasks' || pathname.startsWith('/tasks/')) {
+    return [{ label: 'Tasks' }];
+  }
   if (pathname === '/attendance') {
     return [{ label: 'My Attendance' }];
   }

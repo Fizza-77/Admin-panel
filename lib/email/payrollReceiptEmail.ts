@@ -21,7 +21,7 @@ function buildEmailContent(data: PayrollReceiptData) {
     `Please find attached your salary receipt for ${data.payMonthName} (${data.payPeriodLabel}).`,
     '',
     `Role: ${data.companyRole || '—'}`,
-    `Net amount paid: ${data.salaryFormatted}`,
+    `Net amount paid: ${data.netFormatted}`,
     `Payment date: ${data.paymentDate}`,
     `Reference: ${data.referenceNumber}`,
     '',
@@ -34,7 +34,7 @@ function buildEmailContent(data: PayrollReceiptData) {
       <p>Please find attached your salary receipt for <strong>${escapeHtml(data.payMonthName)}</strong> (${escapeHtml(data.payPeriodLabel)}).</p>
       <p style="margin:20px 0;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
         <strong style="display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;">${escapeHtml(data.payMonthName)} salary month paid</strong>
-        <span style="display:block;margin-top:8px;font-size:15px;">Net amount: <strong>${escapeHtml(data.salaryFormatted)}</strong></span>
+        <span style="display:block;margin-top:8px;font-size:15px;">Net amount: <strong>${escapeHtml(data.netFormatted)}</strong></span>
         <span style="display:block;margin-top:4px;font-size:13px;color:#64748b;">Role: ${escapeHtml(data.companyRole || '—')}</span>
         <span style="display:block;margin-top:4px;font-size:13px;color:#64748b;">Payment date: ${escapeHtml(data.paymentDate)}</span>
       </p>

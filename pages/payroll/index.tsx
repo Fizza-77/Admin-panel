@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
-import { ChevronLeft, ChevronRight, Download, Mail, MinusCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Mail, MinusCircle, PlusCircle } from 'lucide-react';
 import { requireAuthentication, requirePermission } from '@/lib/auth';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import type { AppPermissions } from '@/lib/permissions/types';
@@ -16,7 +16,7 @@ import type { PayrollEmployeeRow } from '@/lib/payroll/types';
 import type { PayPeriod } from '@/lib/payroll/payPeriod';
 
 export const getServerSideProps = requireAuthentication(
-  requirePermission({ attendance: true }, async () => ({ props: {} })),
+  requirePermission({ payroll: true }, async () => ({ props: {} })),
 );
 
 const MONTH_NAMES = [
@@ -56,6 +56,10 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
   const [deductAmount, setDeductAmount] = useState('');
   const [deductSaving, setDeductSaving] = useState(false);
   const [deductError, setDeductError] = useState<string | null>(null);
+  const [bonusTarget, setBonusTarget] = useState<PayrollEmployeeRow | null>(null);
+  const [bonusAmount, setBonusAmount] = useState('');
+  const [bonusSaving, setBonusSaving] = useState(false);
+  const [bonusError, setBonusError] = useState<string | null>(null);
 
   const monthLabel = useMemo(() => {
     const [year, monthPart] = month.split('-').map(Number);
@@ -113,6 +117,21 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
     setDeductError(null);
   };
 
+  const openBonus = (employee: PayrollEmployeeRow) => {
+    setBonusTarget(employee);
+    setBonusAmount(employee.bonus > 0 ? String(employee.bonus) : '');
+    setBonusError(null);
+  };
+
+  const closeBonus = () => {
+    if (bonusSaving) {
+      return;
+    }
+    setBonusTarget(null);
+    setBonusAmount('');
+    setBonusError(null);
+  };
+
   const submitDeduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deductTarget) {
@@ -147,6 +166,43 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
       reportError(err, { source: 'PayrollPage.submitDeduct', userId: deductTarget.user_id, month });
     } finally {
       setDeductSaving(false);
+    }
+  };
+
+  const submitBonus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bonusTarget) {
+      return;
+    }
+    setBonusSaving(true);
+    setBonusError(null);
+    try {
+      const res = await fetch(`/api/payroll/${encodeURIComponent(bonusTarget.user_id)}/bonus`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: bonusAmount.trim() || '0', month }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message || 'Failed to save bonus');
+      }
+      setBonusTarget(null);
+      setBonusAmount('');
+      await load();
+      updateRowAction(bonusTarget.user_id, {
+        message:
+          body?.bonus > 0
+            ? `Bonus saved. Net pay for ${monthLabel}: ${formatEmployeeSalary(body.net_salary)}.`
+            : `Bonus cleared for ${monthLabel}.`,
+        error: null,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save bonus';
+      setBonusError(msg);
+      reportError(err, { source: 'PayrollPage.submitBonus', userId: bonusTarget.user_id, month });
+    } finally {
+      setBonusSaving(false);
     }
   };
 
@@ -264,30 +320,46 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
                 const action = rowActions[employee.user_id] ?? idleRowAction;
                 const role = employee.company_role?.trim() || '—';
                 const hasSalary = employee.salary != null && employee.salary > 0;
-                const salaryLabel =
-                  employee.deduction > 0
-                    ? `${formatEmployeeSalary(employee.net_salary)} net`
-                    : formatEmployeeSalary(employee.salary);
+                const hasAdjustment = employee.deduction > 0 || employee.bonus > 0;
+                const salaryLabel = hasAdjustment
+                  ? `${formatEmployeeSalary(employee.net_salary)} net`
+                  : formatEmployeeSalary(employee.salary);
 
                 return (
                   <li key={employee.user_id} className="px-4 py-4 sm:px-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start gap-2 sm:gap-3">
-                          <button
-                            type="button"
-                            onClick={() => openDeduct(employee)}
-                            disabled={!hasSalary}
-                            title={
-                              hasSalary
-                                ? `Deduct salary for ${monthLabel}`
-                                : 'Set a salary on the profile first'
-                            }
-                            className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <MinusCircle className="h-3.5 w-3.5" aria-hidden />
-                            Deduct salary
-                          </button>
+                          <div className="mt-1 flex shrink-0 flex-col gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openDeduct(employee)}
+                              disabled={!hasSalary}
+                              title={
+                                hasSalary
+                                  ? `Deduct salary for ${monthLabel}`
+                                  : 'Set a salary on the profile first'
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <MinusCircle className="h-3.5 w-3.5" aria-hidden />
+                              Deduct
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openBonus(employee)}
+                              disabled={!hasSalary}
+                              title={
+                                hasSalary
+                                  ? `Add bonus for ${monthLabel}`
+                                  : 'Set a salary on the profile first'
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <PlusCircle className="h-3.5 w-3.5" aria-hidden />
+                              Bonus
+                            </button>
+                          </div>
                           <button
                             type="button"
                             onClick={() => openEmployee(employee.user_id)}
@@ -310,6 +382,14 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
                                 <p className="mt-0.5 text-xs text-amber-800">
                                   Deducted {formatEmployeeSalary(employee.deduction)} in {monthLabel}
                                   {employee.salary != null
+                                    ? ` (base ${formatEmployeeSalary(employee.salary)})`
+                                    : ''}
+                                </p>
+                              )}
+                              {employee.bonus > 0 && (
+                                <p className="mt-0.5 text-xs text-emerald-800">
+                                  Bonus {formatEmployeeSalary(employee.bonus)} in {monthLabel}
+                                  {employee.salary != null && employee.deduction <= 0
                                     ? ` (base ${formatEmployeeSalary(employee.salary)})`
                                     : ''}
                                 </p>
@@ -391,7 +471,10 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
                     Net for {monthLabel}:{' '}
                     <span className="font-semibold text-slate-900">
                       {formatEmployeeSalary(
-                        Math.max(0, deductTarget.salary - (Number(deductAmount) || 0)),
+                        Math.max(
+                          0,
+                          deductTarget.salary - (Number(deductAmount) || 0) + (deductTarget.bonus || 0),
+                        ),
                       )}
                     </span>
                   </p>
@@ -408,6 +491,65 @@ export default function PayrollPage({ permissions }: { permissions: AppPermissio
                 </button>
                 <OutlineFillButtonAction type="submit" disabled={deductSaving}>
                   {deductSaving ? 'Saving…' : 'Save deduction'}
+                </OutlineFillButtonAction>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {bonusTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900">Add bonus</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              For{' '}
+              {employeeFullName(bonusTarget.display_name, bonusTarget.surname, bonusTarget.email)}{' '}
+              — {monthLabel} only. Profile salary stays {formatEmployeeSalary(bonusTarget.salary)}.
+              Leave 0 to clear the bonus.
+            </p>
+            <form onSubmit={(e) => void submitBonus(e)} className="mt-4 space-y-4">
+              <label className="block">
+                <span className="text-xs font-medium text-slate-700">Bonus amount (PKR)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. 10000"
+                  autoFocus
+                />
+              </label>
+              {bonusAmount &&
+                bonusTarget.salary != null &&
+                Number(bonusAmount) >= 0 &&
+                Number.isFinite(Number(bonusAmount)) && (
+                  <p className="text-sm text-slate-600">
+                    Net for {monthLabel}:{' '}
+                    <span className="font-semibold text-slate-900">
+                      {formatEmployeeSalary(
+                        Math.max(
+                          0,
+                          bonusTarget.salary - (bonusTarget.deduction || 0) + (Number(bonusAmount) || 0),
+                        ),
+                      )}
+                    </span>
+                  </p>
+                )}
+              {bonusError && <p className="text-sm text-red-600">{bonusError}</p>}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeBonus}
+                  disabled={bonusSaving}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <OutlineFillButtonAction type="submit" disabled={bonusSaving}>
+                  {bonusSaving ? 'Saving…' : 'Save bonus'}
                 </OutlineFillButtonAction>
               </div>
             </form>

@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase/server';
 import { ensureAppProfileRowsForUserIds } from '@/lib/permissions/appProfileDb';
 import type { PayrollEmployeeRow } from '@/lib/payroll/types';
 import { loadPayrollDeductionsForMonth, netSalaryAfterDeduction } from '@/lib/payroll/deductions';
+import { loadPayrollBonusesForMonth } from '@/lib/payroll/bonuses';
 import { monthInputValue } from '@/lib/expenses/types';
 
 async function listAllAuthUsers() {
@@ -40,9 +41,10 @@ export async function listPayrollEmployees(month = monthInputValue()): Promise<{
   }
 
   const ids = users.map((user) => user.id);
-  const [{ byUserId, error: profileError, stillMissingUserIds }, deductions] = await Promise.all([
+  const [{ byUserId, error: profileError, stillMissingUserIds }, deductions, bonuses] = await Promise.all([
     ensureAppProfileRowsForUserIds(ids),
     loadPayrollDeductionsForMonth(month),
+    loadPayrollBonusesForMonth(month),
   ]);
   if (profileError || stillMissingUserIds.length > 0) {
     return {
@@ -57,9 +59,9 @@ export async function listPayrollEmployees(month = monthInputValue()): Promise<{
     const salary =
       salaryRaw != null && Number.isFinite(Number(salaryRaw)) ? Number(salaryRaw) : null;
     const hasSalary = salary != null && salary > 0;
-    // Deductions only apply while a profile salary is set.
     const deduction = hasSalary ? deductions.get(user.id) ?? 0 : 0;
-    const net_salary = netSalaryAfterDeduction(salary, deduction);
+    const bonus = hasSalary ? bonuses.get(user.id) ?? 0 : 0;
+    const net_salary = netSalaryAfterDeduction(salary, deduction, bonus);
 
     return {
       user_id: user.id,
@@ -69,6 +71,7 @@ export async function listPayrollEmployees(month = monthInputValue()): Promise<{
       company_role: profile?.company_role ?? null,
       salary,
       deduction,
+      bonus,
       net_salary,
       avatar_url: profile?.avatar_url ?? null,
       contact_info: profile?.contact_info ?? null,

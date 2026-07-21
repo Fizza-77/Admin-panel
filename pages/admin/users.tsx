@@ -22,6 +22,8 @@ export type AdminUserRow = {
   can_manage_users: boolean;
   can_manage_attendance: boolean;
   can_manage_expenses: boolean;
+  can_manage_profiles: boolean;
+  can_manage_payroll: boolean;
 };
 
 export const getServerSideProps = requireAuthentication(
@@ -58,6 +60,8 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
   const [newTaskAdmin, setNewTaskAdmin] = useState(false);
   const [newAttendanceControl, setNewAttendanceControl] = useState(false);
   const [newExpenseTracker, setNewExpenseTracker] = useState(false);
+  const [newSetProfiles, setNewSetProfiles] = useState(false);
+  const [newPayroll, setNewPayroll] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
 
   const isPrimaryOwnerRow = (row: AdminUserRow) =>
@@ -112,6 +116,8 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           can_manage_users: row.can_manage_users,
           can_manage_attendance: row.can_manage_attendance,
           can_manage_expenses: row.can_manage_expenses,
+          can_manage_profiles: row.can_manage_profiles,
+          can_manage_payroll: row.can_manage_payroll,
           display_name: (row.display_name ?? '').trim() || null,
         }),
       });
@@ -177,6 +183,8 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
           can_administer_tasks: newTaskAdmin,
           can_manage_attendance: newAttendanceControl,
           can_manage_expenses: newExpenseTracker,
+          can_manage_profiles: newSetProfiles,
+          can_manage_payroll: newPayroll,
           can_manage_users: false,
         }),
       });
@@ -191,6 +199,8 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       setNewTaskAdmin(false);
       setNewAttendanceControl(false);
       setNewExpenseTracker(false);
+      setNewSetProfiles(false);
+      setNewPayroll(false);
       setNewDisplayName('');
       setPage(1);
       await load(1);
@@ -221,14 +231,6 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">User management</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Every user gets basic <span className="font-medium">Tasks</span> access automatically (view assigned tasks,
-            update status). Enable <span className="font-medium">Tasks admin</span> only for people who should create
-            tasks, edit any task, and manage tags. Enable <span className="font-medium">Attendance control</span> for
-            users who should mark daily attendance for the whole team. Enable{' '}
-            <span className="font-medium">Expense tracker</span> for users who should record and view team expenses.
-            User management stays with the primary admin email.
-          </p>
         </div>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -305,6 +307,28 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                 />
                 Expense tracker
               </label>
+              <label
+                className="inline-flex items-center gap-2 text-sm"
+                title="Open All Employees and edit employee profile fields"
+              >
+                <input
+                  type="checkbox"
+                  checked={newSetProfiles}
+                  onChange={(e) => setNewSetProfiles(e.target.checked)}
+                />
+                Set profiles
+              </label>
+              <label
+                className="inline-flex items-center gap-2 text-sm"
+                title="Access Payroll (independent of attendance)"
+              >
+                <input
+                  type="checkbox"
+                  checked={newPayroll}
+                  onChange={(e) => setNewPayroll(e.target.checked)}
+                />
+                Payroll
+              </label>
               <span className="text-xs text-slate-500 sm:col-span-2 lg:col-span-4">
                 Basic task access is enabled for all new users.
               </span>
@@ -374,6 +398,12 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                     <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Record and view team expenses">
                       Expense tracker
                     </th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Edit employee profiles">
+                      Set profiles
+                    </th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700" title="Access Payroll">
+                      Payroll
+                    </th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Action</th>
                   </tr>
                 </thead>
@@ -437,6 +467,26 @@ export default function AdminUsersPage({ permissions }: { permissions: AppPermis
                             onChange={(e) => updateLocalRow(row.id, { can_manage_expenses: e.target.checked })}
                             aria-label="Expense tracker — record and view team expenses"
                             title="Expense tracker: record and view team expenses"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={primaryLocked ? true : row.can_manage_profiles}
+                            disabled={primaryLocked}
+                            onChange={(e) => updateLocalRow(row.id, { can_manage_profiles: e.target.checked })}
+                            aria-label="Set profiles — edit employee profile fields"
+                            title="Set profiles: open All Employees and edit employee profile fields"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={primaryLocked ? true : row.can_manage_payroll}
+                            disabled={primaryLocked}
+                            onChange={(e) => updateLocalRow(row.id, { can_manage_payroll: e.target.checked })}
+                            aria-label="Payroll — access payroll"
+                            title="Payroll: access salary receipts (independent of attendance)"
                           />
                         </td>
                         <td className="px-4 py-3 text-right">

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -115,8 +114,9 @@ export default function Login() {
                     S
                   </span>
                 ) : (
-                  <Image
-                    src="/logo.png"
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/skyen-systems.png"
                     alt="Skyen Systems"
                     width={32}
                     height={32}
@@ -163,8 +163,9 @@ export default function Login() {
                     S
                   </span>
                 ) : (
-                  <Image
-                    src="/logo.png"
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/skyen-systems.png"
                     alt="Skyen Systems"
                     width={40}
                     height={40}

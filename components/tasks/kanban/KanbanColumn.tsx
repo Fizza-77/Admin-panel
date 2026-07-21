@@ -21,13 +21,13 @@ const COLUMN_META: Record<
   },
   ready: {
     icon: CheckCircle2,
-    emptyTitle: 'Nothing to ship',
-    emptyHint: 'Tasks land here when they are ready for review.',
+    emptyTitle: 'Nothing in QA',
+    emptyHint: 'Tasks land here when they are ready for QA.',
   },
   closed: {
     icon: Archive,
     emptyTitle: 'Archive is empty',
-    emptyHint: 'Closed tasks collect here — a quiet win.',
+    emptyHint: 'Only a tasks admin can move tasks here.',
   },
 };
 

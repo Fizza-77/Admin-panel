@@ -10,7 +10,7 @@ import UserAvatar from '@/components/ui/UserAvatar';
 import { employeeFullName } from '@/lib/employees/profile';
 import { userDisplayLabel } from '@/lib/users/display';
 import type { AttendanceRow, AttendanceStatus } from '@/lib/attendance/types';
-import { ATTENDANCE_STATUS_LABELS, todayDateInputValue } from '@/lib/attendance/types';
+import { ATTENDANCE_STATUS_LABELS } from '@/lib/attendance/types';
 import { OFF_DAY_LABEL } from '@/lib/attendance/workingDays';
 import { formatLateHours } from '@/lib/attendance/reports';
 import { formatAmount, monthInputValue } from '@/lib/expenses/types';
@@ -29,14 +29,14 @@ const getStatusLabel = (row: AttendanceRow, isWorkingDay: boolean): string => {
 };
 
 export const getServerSideProps = requireAuthentication(
-  requirePermission({ attendance: true }, async () => ({ props: {} })),
+  requirePermission({ employees: true }, async () => ({ props: {} })),
 );
 
 export default function EmployeesPage({ permissions }: { permissions: AppPermissions }) {
   const router = useRouter();
-  const today = todayDateInputValue();
   const [roster, setRoster] = useState<AttendanceRow[]>([]);
   const [isWorkingDay, setIsWorkingDay] = useState(true);
+  const [includeAttendance, setIncludeAttendance] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expenseTotals, setExpenseTotals] = useState<Record<string, number>>({});
@@ -64,15 +64,14 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
     setLoadError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/attendance?date=${encodeURIComponent(today)}`, {
-        credentials: 'include',
-      });
+      const res = await fetch('/api/employees', { credentials: 'include' });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(body?.message || 'Failed to load employees');
       }
 
       setIsWorkingDay(Boolean(body?.is_working_day));
+      setIncludeAttendance(Boolean(body?.include_attendance));
       const list = Array.isArray(body?.rows) ? (body.rows as AttendanceRow[]) : [];
       setRoster(list);
     } catch (e: unknown) {
@@ -82,7 +81,7 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -107,7 +106,8 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
           <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
             <h1 className="text-lg font-semibold text-slate-900">All Employees</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              Click an employee to view their profile, role, salary, expenses, and attendance report.
+              Click an employee to view and edit their profile
+              {includeAttendance ? ', attendance, and related details' : ''}.
             </p>
           </div>
 
@@ -124,7 +124,9 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
                     {canManageExpenses && (
                       <th className="px-4 py-3 text-right font-semibold text-slate-700">Monthly expenses</th>
                     )}
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Today</th>
+                    {includeAttendance && (
+                      <th className="px-4 py-3 text-left font-semibold text-slate-700">Today</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -163,7 +165,9 @@ export default function EmployeesPage({ permissions }: { permissions: AppPermiss
                             {formatAmount(expenseTotals[row.user_id] ?? 0)}
                           </td>
                         )}
-                        <td className="px-4 py-3 text-slate-600">{label}</td>
+                        {includeAttendance && (
+                          <td className="px-4 py-3 text-slate-600">{label}</td>
+                        )}
                       </tr>
                     );
                   })}

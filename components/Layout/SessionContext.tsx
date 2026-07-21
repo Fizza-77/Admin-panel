@@ -71,8 +71,9 @@ export function SessionProvider({ children, serverPermissions }: SessionProvider
     const fromLive = live?.permissions;
     const fromCache = cached?.permissions;
     const fromServer = serverPermissions;
+    // Prefer live /api/auth/session over GSSP so newly granted flags show without a full remount.
     return pickBestPermissions(
-      pickBestPermissions(fromServer, fromLive),
+      pickBestPermissions(fromLive, fromServer),
       fromCache,
     );
   }, [cached?.permissions, live?.permissions, serverPermissions]);

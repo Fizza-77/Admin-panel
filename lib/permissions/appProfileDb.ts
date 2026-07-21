@@ -16,6 +16,8 @@ export type AppProfileRow = {
   can_manage_users: boolean;
   can_manage_attendance: boolean;
   can_manage_expenses: boolean;
+  can_manage_profiles: boolean;
+  can_manage_payroll: boolean;
   display_name: string | null;
   surname: string | null;
   qualification: string | null;
@@ -26,7 +28,7 @@ export type AppProfileRow = {
 };
 
 const PROFILE_COLUMNS =
-  'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, can_manage_attendance, can_manage_expenses, display_name, surname, qualification, contact_info, company_role, salary, avatar_url';
+  'can_manage_blogs, can_manage_tasks, can_administer_tasks, can_manage_users, can_manage_attendance, can_manage_expenses, can_manage_profiles, can_manage_payroll, display_name, surname, qualification, contact_info, company_role, salary, avatar_url';
 
 export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow {
   const can_manage_users =
@@ -48,6 +50,14 @@ export function normalizeProfileRow(raw: Record<string, unknown>): AppProfileRow
     can_manage_expenses:
       raw.can_manage_expenses !== null && raw.can_manage_expenses !== undefined
         ? Boolean(raw.can_manage_expenses)
+        : false,
+    can_manage_profiles:
+      raw.can_manage_profiles !== null && raw.can_manage_profiles !== undefined
+        ? Boolean(raw.can_manage_profiles)
+        : false,
+    can_manage_payroll:
+      raw.can_manage_payroll !== null && raw.can_manage_payroll !== undefined
+        ? Boolean(raw.can_manage_payroll)
         : false,
     display_name: typeof raw.display_name === 'string' ? raw.display_name : null,
     surname: typeof raw.surname === 'string' ? raw.surname : null,
@@ -77,6 +87,8 @@ export type AppProfileUpsertInput = {
   can_manage_users: boolean;
   can_manage_attendance: boolean;
   can_manage_expenses: boolean;
+  can_manage_profiles: boolean;
+  can_manage_payroll: boolean;
   display_name: string | null;
   avatar_url: string | null;
 };
@@ -88,6 +100,8 @@ export const DEFAULT_APP_PROFILE_FLAGS = {
   can_manage_users: false,
   can_manage_attendance: false,
   can_manage_expenses: false,
+  can_manage_profiles: false,
+  can_manage_payroll: false,
 } as const;
 
 export const FULL_ACCESS_PROFILE_FLAGS = {
@@ -97,6 +111,8 @@ export const FULL_ACCESS_PROFILE_FLAGS = {
   can_manage_users: true,
   can_manage_attendance: true,
   can_manage_expenses: true,
+  can_manage_profiles: true,
+  can_manage_payroll: true,
 } as const;
 
 function enrichDbError(error: DbErrorLike): DbErrorLike {
@@ -113,7 +129,7 @@ function enrichDbError(error: DbErrorLike): DbErrorLike {
 }
 
 /** SECURITY DEFINER — bypasses RLS; preferred path for all profile reads. */
-async function fetchAppProfileRowViaRpc(userId: string): Promise<ProfileFetchResult> {
+async function fetchAppProfileRowViaRpc(userId: string): Promise<ProfileFetchResult & { raw?: Record<string, unknown> }> {
   const { data, error } = await supabase.rpc('svc_get_app_profile', { p_user_id: userId });
   if (error) {
     return { row: null, error: enrichDbError(error) };
@@ -121,7 +137,8 @@ async function fetchAppProfileRowViaRpc(userId: string): Promise<ProfileFetchRes
   if (!data || typeof data !== 'object') {
     return { row: null, error: null };
   }
-  return { row: normalizeProfileRow(data as Record<string, unknown>), error: null };
+  const raw = data as Record<string, unknown>;
+  return { row: normalizeProfileRow(raw), error: null, raw };
 }
 
 /** Direct table read — only when RPC migrations are not applied yet. */
@@ -136,10 +153,27 @@ async function fetchAppProfileRowDirect(userId: string): Promise<ProfileFetchRes
     if (isUndefinedColumnError(error)) {
       const { data: legacy, error: legacyErr } = await supabase
         .from('app_profiles')
-        .select('can_manage_blogs, can_manage_tasks, can_manage_users')
+        .select(
+          'can_manage_blogs, can_manage_tasks, can_manage_users, can_manage_attendance, can_manage_expenses, display_name, surname, qualification, contact_info, company_role, salary, avatar_url',
+        )
         .eq('user_id', userId)
         .maybeSingle();
       if (legacyErr) {
+        if (isUndefinedColumnError(legacyErr)) {
+          const { data: older, error: olderErr } = await supabase
+            .from('app_profiles')
+            .select('can_manage_blogs, can_manage_tasks, can_manage_users')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (olderErr) {
+            reportError(olderErr, { source: 'fetchAppProfileRowDirect', userId });
+            return { row: null, error: enrichDbError(olderErr) };
+          }
+          if (!older) {
+            return { row: null, error: null };
+          }
+          return { row: normalizeProfileRow(older as Record<string, unknown>), error: null };
+        }
         reportError(legacyErr, { source: 'fetchAppProfileRowDirect', userId });
         return { row: null, error: enrichDbError(legacyErr) };
       }
@@ -158,10 +192,26 @@ async function fetchAppProfileRowDirect(userId: string): Promise<ProfileFetchRes
   return { row: normalizeProfileRow(data as Record<string, unknown>), error: null };
 }
 
+/**
+ * Loads profile flags. Prefers SECURITY DEFINER RPC, but falls back to a direct
+ * table read when the RPC is an older definition that omits newer permission columns
+ * (e.g. can_manage_profiles) so granted access is not silently dropped.
+ */
 export async function fetchAppProfileRow(userId: string): Promise<ProfileFetchResult> {
   const rpc = await fetchAppProfileRowViaRpc(userId);
   if (!rpc.error) {
-    return rpc;
+    const raw = rpc.raw;
+    const rpcOmitsNewerFlags =
+      Boolean(raw) &&
+      (!Object.prototype.hasOwnProperty.call(raw, 'can_manage_profiles') ||
+        !Object.prototype.hasOwnProperty.call(raw, 'can_manage_payroll'));
+    if (rpcOmitsNewerFlags) {
+      const direct = await fetchAppProfileRowDirect(userId);
+      if (!direct.error && direct.row) {
+        return direct;
+      }
+    }
+    return { row: rpc.row, error: null };
   }
   if (!isRpcNotFoundError(rpc.error)) {
     reportError(rpc.error, { source: 'fetchAppProfileRowViaRpc', userId });
@@ -262,6 +312,8 @@ async function upsertAppProfileRowViaRpc(input: AppProfileUpsertInput): Promise<
     p_can_manage_users: input.can_manage_users,
     p_can_manage_attendance: input.can_manage_attendance,
     p_can_manage_expenses: input.can_manage_expenses,
+    p_can_manage_profiles: input.can_manage_profiles,
+    p_can_manage_payroll: input.can_manage_payroll,
     p_display_name: input.display_name,
     p_avatar_url: input.avatar_url,
   });
@@ -275,6 +327,31 @@ async function upsertAppProfileRowDirect(input: AppProfileUpsertInput): Promise<
   const updated_at = new Date().toISOString();
   const payloads: Record<string, unknown>[] = [
     { ...input, updated_at },
+    {
+      user_id: input.user_id,
+      can_manage_blogs: input.can_manage_blogs,
+      can_manage_tasks: input.can_manage_tasks,
+      can_administer_tasks: input.can_administer_tasks,
+      can_manage_users: input.can_manage_users,
+      can_manage_attendance: input.can_manage_attendance,
+      can_manage_expenses: input.can_manage_expenses,
+      can_manage_profiles: input.can_manage_profiles,
+      display_name: input.display_name,
+      avatar_url: input.avatar_url,
+      updated_at,
+    },
+    {
+      user_id: input.user_id,
+      can_manage_blogs: input.can_manage_blogs,
+      can_manage_tasks: input.can_manage_tasks,
+      can_administer_tasks: input.can_administer_tasks,
+      can_manage_users: input.can_manage_users,
+      can_manage_attendance: input.can_manage_attendance,
+      can_manage_expenses: input.can_manage_expenses,
+      display_name: input.display_name,
+      avatar_url: input.avatar_url,
+      updated_at,
+    },
     {
       user_id: input.user_id,
       can_manage_blogs: input.can_manage_blogs,

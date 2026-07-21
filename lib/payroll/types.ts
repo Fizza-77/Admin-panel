@@ -7,7 +7,9 @@ export type PayrollEmployeeRow = {
   salary: number | null;
   /** Deduction applied this pay month only (0 if none). */
   deduction: number;
-  /** salary - deduction for this pay month. */
+  /** Bonus applied this pay month only (0 if none). */
+  bonus: number;
+  /** salary - deduction + bonus for this pay month. */
   net_salary: number | null;
   avatar_url: string | null;
   contact_info: string | null;
@@ -29,6 +31,8 @@ export type PayrollReceiptData = {
   salaryFormatted: string;
   deductionAmount: number;
   deductionFormatted: string;
+  bonusAmount: number;
+  bonusFormatted: string;
   netAmount: number | null;
   netFormatted: string;
   referenceNumber: string;

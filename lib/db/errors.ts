@@ -31,9 +31,15 @@ export function isPostgrestError(value: unknown): value is PostgrestError {
   );
 }
 
-/** Postgres undefined_column */
+/** Postgres undefined_column, or PostgREST schema-cache miss for a column (PGRST204). */
 export function isUndefinedColumnError(error: DbErrorLike | null | undefined): boolean {
-  return error?.code === '42703';
+  if (!error) {
+    return false;
+  }
+  if (error.code === '42703' || error.code === 'PGRST204') {
+    return true;
+  }
+  return /Could not find the .+ column .+ in the schema cache/i.test(error.message ?? '');
 }
 
 /** PostgREST / Postgres — RPC not deployed yet */

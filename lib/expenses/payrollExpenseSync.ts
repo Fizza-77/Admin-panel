@@ -7,6 +7,7 @@ import { expenseMonthFromDate } from '@/lib/expenses/softwareExpenseLink';
 import { monthDateRange, monthInputValue } from '@/lib/expenses/types';
 import { listPayrollEmployees } from '@/lib/payroll/listPayrollEmployees';
 import { loadPayrollDeductionsForMonth, netSalaryAfterDeduction } from '@/lib/payroll/deductions';
+import { loadPayrollBonusesForMonth } from '@/lib/payroll/bonuses';
 
 async function findPayrollExpenseForMonth(params: {
   userId: string;
@@ -247,7 +248,10 @@ export async function syncPayrollExpensesForMonth(month: string, createdBy: stri
   }
 
   const excludedUserIds = await loadExcludedPayrollUserIds(range.from);
-  const deductionsByUser = await loadPayrollDeductionsForMonth(month);
+  const [deductionsByUser, bonusesByUser] = await Promise.all([
+    loadPayrollDeductionsForMonth(month),
+    loadPayrollBonusesForMonth(month),
+  ]);
   const currentMonth = monthInputValue();
   const isPastMonth = month < currentMonth;
   let linkColumnsAvailable = true;
@@ -283,27 +287,34 @@ export async function syncPayrollExpensesForMonth(month: string, createdBy: stri
     }
 
     const deduction = deductionsByUser.get(employee.user_id) ?? 0;
-    const netAmount = netSalaryAfterDeduction(employee.salary, deduction);
+    const bonus = bonusesByUser.get(employee.user_id) ?? 0;
+    const netAmount = netSalaryAfterDeduction(employee.salary, deduction, bonus);
     if (netAmount == null || netAmount <= 0) {
       continue;
     }
+
+    const noteParts: string[] = [`Base ${employee.salary}`];
+    if (deduction > 0) {
+      noteParts.push(`deduction ${deduction}`);
+    }
+    if (bonus > 0) {
+      noteParts.push(`bonus ${bonus}`);
+    }
+    const adjustmentNotes = deduction > 0 || bonus > 0 ? noteParts.join('; ') : null;
 
     const payload: Record<string, unknown> = {
       expense_date: range.from,
       title,
       amount: netAmount,
       category: 'Payroll',
-      notes: deduction > 0 ? `Base ${employee.salary}; deduction ${deduction}` : null,
+      notes: adjustmentNotes,
       updated_at: now,
     };
 
     if (linkColumnsAvailable) {
       payload.assigned_user_id = employee.user_id;
     } else {
-      payload.notes = notesWithAssignee(
-        deduction > 0 ? `Base ${employee.salary}; deduction ${deduction}` : null,
-        employee.user_id,
-      );
+      payload.notes = notesWithAssignee(adjustmentNotes, employee.user_id);
     }
 
     if (existingId) {
@@ -328,10 +339,7 @@ export async function syncPayrollExpensesForMonth(month: string, createdBy: stri
           title,
           amount: netAmount,
           category: 'Payroll',
-          notes: notesWithAssignee(
-            deduction > 0 ? `Base ${employee.salary}; deduction ${deduction}` : null,
-            employee.user_id,
-          ),
+          notes: notesWithAssignee(adjustmentNotes, employee.user_id),
           created_by: createdBy,
           updated_at: now,
         });

@@ -9,6 +9,7 @@ import type { AppPermissions } from '@/lib/permissions/types';
 import { LoadingOverlay } from '@/components/ui/Spinner';
 import { reportError } from '@/lib/monitoring';
 import { canMarkTeamAttendance } from '@/lib/permissions/attendanceAccess';
+import { canSetEmployeeProfiles } from '@/lib/permissions/profileAccess';
 import AttendanceReports from '@/components/attendance/AttendanceReports';
 import EmployeeExpensesPanel from '@/components/expenses/EmployeeExpensesPanel';
 import UserAvatar from '@/components/ui/UserAvatar';
@@ -30,7 +31,7 @@ import {
 import { formatAmount } from '@/lib/expenses/types';
 
 export const getServerSideProps = requireAuthentication(
-  requirePermission({ attendance: true }, async () => ({ props: {} })),
+  requirePermission({ employees: true }, async () => ({ props: {} })),
 );
 
 function ProfileField({ label, value }: { label: string; value: string }) {
@@ -181,6 +182,8 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const isAdmin = canMarkTeamAttendance(permissions);
+  const canEditProfiles = canSetEmployeeProfiles(permissions);
+  const canEditRoleSalary = canEditProfiles || isAdmin;
 
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState<string | null>(null);
@@ -287,17 +290,26 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
   }, [loadProfile]);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !isAdmin) {
       return;
     }
     void loadReports(month);
-  }, [loadReports, month, userId]);
+  }, [isAdmin, loadReports, month, userId]);
 
   useEffect(() => {
     setExpenseTotal(null);
   }, [month, userId]);
 
-  const saveAdminField = async (patch: { company_role?: string | null; salary?: string | null }) => {
+  const saveProfileField = async (
+    patch: Partial<{
+      display_name: string | null;
+      surname: string | null;
+      qualification: string | null;
+      contact_info: string | null;
+      company_role: string | null;
+      salary: string | null;
+    }>,
+  ) => {
     if (!userId) {
       return;
     }
@@ -310,7 +322,7 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const message = body?.message || 'Failed to save';
-      reportError(new Error(message), { source: 'EmployeeDetailPage.saveAdminField', userId, patch });
+      reportError(new Error(message), { source: 'EmployeeDetailPage.saveProfileField', userId, patch });
       throw new Error(message);
     }
     const profile = body.employee as EmployeeProfile;
@@ -318,11 +330,27 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
   };
 
   const saveRole = async (value: string) => {
-    await saveAdminField({ company_role: value.trim() || null });
+    await saveProfileField({ company_role: value.trim() || null });
   };
 
   const saveSalary = async (value: string) => {
-    await saveAdminField({ salary: value.trim() || null });
+    await saveProfileField({ salary: value.trim() || null });
+  };
+
+  const saveFirstName = async (value: string) => {
+    await saveProfileField({ display_name: value.trim() || null });
+  };
+
+  const saveSurname = async (value: string) => {
+    await saveProfileField({ surname: value.trim() || null });
+  };
+
+  const saveQualification = async (value: string) => {
+    await saveProfileField({ qualification: value.trim() || null });
+  };
+
+  const saveContactInfo = async (value: string) => {
+    await saveProfileField({ contact_info: value.trim() || null });
   };
 
   const fullName = employee
@@ -331,7 +359,7 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
 
   const overlayMessages =
     profileLoading ? ['Loading employee…', 'Fetching profile details…']
-    : reportsLoading ? ['Loading attendance…', 'Fetching reports…']
+    : isAdmin && reportsLoading ? ['Loading attendance…', 'Fetching reports…']
     : null;
 
   return (
@@ -362,12 +390,51 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
 
             <div className="px-4 py-5 sm:px-6">
               <div className="grid gap-4 sm:grid-cols-2">
-                <ProfileField label="First name" value={employee.display_name?.trim() || '—'} />
-                <ProfileField label="Surname" value={employee.surname?.trim() || '—'} />
-                <ProfileField label="Qualification" value={employee.qualification?.trim() || '—'} />
-                <ProfileField label="Contact info" value={employee.contact_info?.trim() || '—'} />
+                {canEditProfiles ? (
+                  <>
+                    <AdminInlineField
+                      label="First name"
+                      savedValue={employee.display_name?.trim() ?? ''}
+                      onSave={saveFirstName}
+                      maxLength={120}
+                      placeholder="First name"
+                      saveLabel="Save first name"
+                    />
+                    <AdminInlineField
+                      label="Surname"
+                      savedValue={employee.surname?.trim() ?? ''}
+                      onSave={saveSurname}
+                      maxLength={120}
+                      placeholder="Surname"
+                      saveLabel="Save surname"
+                    />
+                    <AdminInlineField
+                      label="Qualification"
+                      savedValue={employee.qualification?.trim() ?? ''}
+                      onSave={saveQualification}
+                      maxLength={120}
+                      placeholder="Qualification"
+                      saveLabel="Save qualification"
+                    />
+                    <AdminInlineField
+                      label="Contact info"
+                      savedValue={employee.contact_info?.trim() ?? ''}
+                      onSave={saveContactInfo}
+                      maxLength={200}
+                      placeholder="Phone or contact"
+                      saveLabel="Save contact info"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ProfileField label="First name" value={employee.display_name?.trim() || '—'} />
+                    <ProfileField label="Surname" value={employee.surname?.trim() || '—'} />
+                    <ProfileField label="Qualification" value={employee.qualification?.trim() || '—'} />
+                    <ProfileField label="Contact info" value={employee.contact_info?.trim() || '—'} />
+                  </>
+                )}
 
-                {isAdmin ? (
+                {canEditRoleSalary ? (
                   <>
                     <AdminInlineField
                       label="Role in company"
@@ -415,6 +482,7 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
           />
         )}
 
+        {isAdmin && (
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
             <h2 className="text-lg font-semibold text-slate-900">Attendance</h2>
@@ -496,6 +564,7 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
             </div>
           )}
         </section>
+        )}
       </div>
     </AdminLayout>
   );

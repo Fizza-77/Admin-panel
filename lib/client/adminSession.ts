@@ -64,6 +64,8 @@ function isAppPermissions(value: unknown): value is AppPermissions {
     typeof p.canManageUsers === 'boolean' &&
     typeof p.canManageAttendance === 'boolean' &&
     (typeof p.canManageExpenses === 'boolean' || p.canManageExpenses === undefined) &&
+    (typeof p.canManageProfiles === 'boolean' || p.canManageProfiles === undefined) &&
+    (typeof p.canManagePayroll === 'boolean' || p.canManagePayroll === undefined) &&
     typeof p.isPrimaryAdmin === 'boolean'
   );
 }
@@ -72,6 +74,8 @@ function normalizeCachedPermissions(permissions: AppPermissions): AppPermissions
   return {
     ...permissions,
     canManageExpenses: permissions.canManageExpenses ?? false,
+    canManageProfiles: permissions.canManageProfiles ?? false,
+    canManagePayroll: permissions.canManagePayroll ?? false,
   };
 }
 

@@ -4,7 +4,7 @@ import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { isTaskSuperAdmin } from '@/lib/permissions/taskAdmin';
 import { reportError } from '@/lib/monitoring';
 import { assigneeStatusOnly, canUserFullyManageTask, canUserViewTask } from '@/lib/tasks/taskAccess';
-import { isTaskStatus } from '@/lib/tasks/taskStatus';
+import { isTaskStatus, canSetTaskStatus } from '@/lib/tasks/taskStatus';
 import { isTaskVisibility } from '@/lib/tasks/taskVisibility';
 import type { TaskWithRelations } from '@/lib/tasks/taskRow';
 import { mapTaskRow, TASK_SELECT_WITH_RELATIONS } from '@/lib/tasks/mapTaskRow';
@@ -67,6 +67,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isTaskStatus(body.status)) {
         return res.status(400).json({ message: 'Valid status is required' });
       }
+      if (!canSetTaskStatus(body.status, isSuper)) {
+        return res.status(403).json({ message: 'You cannot close the task.' });
+      }
       const { error: upErr } = await supabase
         .from('tasks')
         .update({ status: body.status, updated_at: new Date().toISOString() })
@@ -93,6 +96,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       patch.description = body.description.trim() || null;
     }
     if (isTaskStatus(body.status)) {
+      if (!canSetTaskStatus(body.status, isSuper)) {
+        return res.status(403).json({ message: 'You cannot close the task.' });
+      }
       patch.status = body.status;
     }
     if (isTaskVisibility(body.visibility)) {

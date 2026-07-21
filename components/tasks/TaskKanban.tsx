@@ -12,6 +12,7 @@ import {
 import {
   TASK_STATUS_LABELS,
   TASK_STATUSES,
+  canSetTaskStatus,
   isTaskStatus,
   type TaskStatus,
 } from '@/lib/tasks/taskStatus';
@@ -24,7 +25,6 @@ import {
   isTagColorKey,
 } from '@/lib/tasks/tagColors';
 import type { AppPermissions } from '@/lib/permissions/types';
-import PageHeader from '@/components/ui/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { LoadingOverlay } from '@/components/ui/Spinner';
 import { OutlineFillButtonAction, PlusIcon } from '@/components/ui/OutlineFillButton';
@@ -292,6 +292,10 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
       if (!task || task.status === newStatus) {
         return;
       }
+      if (!canSetTaskStatus(newStatus, isSuper)) {
+        setToast('You cannot close the task.');
+        return;
+      }
       const previousStatus = task.status as TaskStatus;
 
       setTasks((prev) =>
@@ -305,7 +309,7 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
 
       void moveStatus(taskId, newStatus, previousStatus);
     },
-    [moveStatus],
+    [isSuper, moveStatus],
   );
 
   const deleteTask = async (task: TaskWithRelations) => {
@@ -352,10 +356,6 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
 
   return (
     <div className="kanban-root space-y-6">
-      <PageHeader
-        title="Tasks"
-        breadcrumbs={[{ label: 'Blogs', href: '/' }, { label: 'Tasks' }]}
-      />
       <div className="kanban-filters flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2 items-center">
           <input
@@ -520,6 +520,7 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
           mode="create"
           tags={tags}
           users={users}
+          isTasksAdmin={isSuper}
           onClose={() => setCreateOpen(false)}
           onSaved={() => {
             setCreateOpen(false);
@@ -534,6 +535,7 @@ export default function TaskKanban({ permissions, currentUserId }: TaskKanbanPro
           task={editing}
           tags={tags}
           users={users}
+          isTasksAdmin={isSuper}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);

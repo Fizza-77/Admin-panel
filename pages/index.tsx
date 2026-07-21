@@ -36,6 +36,12 @@ export const getServerSideProps = requireAuthentication(async (context: GetServe
     if (permissions.canManageAttendance) {
       return { redirect: { destination: '/attendance', permanent: false } };
     }
+    if (permissions.canManageProfiles) {
+      return { redirect: { destination: '/employees', permanent: false } };
+    }
+    if (permissions.canManagePayroll) {
+      return { redirect: { destination: '/payroll', permanent: false } };
+    }
     if (permissions.canManageExpenses) {
       return { redirect: { destination: '/expenses', permanent: false } };
     }

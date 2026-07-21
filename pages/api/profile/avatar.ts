@@ -89,6 +89,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       can_manage_users: flags.can_manage_users,
       can_manage_attendance: flags.can_manage_attendance,
       can_manage_expenses: flags.can_manage_expenses,
+      can_manage_profiles: flags.can_manage_profiles,
+      can_manage_payroll: flags.can_manage_payroll,
       display_name: existing?.display_name ?? null,
       avatar_url,
     });

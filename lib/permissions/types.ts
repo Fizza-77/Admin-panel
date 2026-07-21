@@ -15,6 +15,10 @@ export type AppPermissions = {
   canManageAttendance: boolean;
   /** View and manage team expenses. */
   canManageExpenses: boolean;
+  /** Open All Employees and edit employee profile fields. */
+  canManageProfiles: boolean;
+  /** Access Payroll (independent of attendance control). */
+  canManagePayroll: boolean;
   /** From `app_profiles.display_name`; UI falls back to email when null */
   displayName?: string | null;
   /** Cloudinary profile photo; UI falls back to initials when null */

@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireApiPermission } from '@/lib/permissions/apiGuard';
 import { reportError } from '@/lib/monitoring';
-import { upsertPayrollDeduction, netSalaryAfterDeduction } from '@/lib/payroll/deductions';
-import { getPayrollBonusForUser } from '@/lib/payroll/bonuses';
+import { upsertPayrollBonus } from '@/lib/payroll/bonuses';
+import { getPayrollDeductionForUser, netSalaryAfterDeduction } from '@/lib/payroll/deductions';
 import { syncPayrollExpensesForMonth } from '@/lib/expenses/payrollExpenseSync';
 import { monthInputValue } from '@/lib/expenses/types';
 import { fetchAppProfileRow } from '@/lib/permissions/appProfileDb';
@@ -33,12 +33,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : NaN;
 
   if (!Number.isFinite(amount) || amount < 0) {
-    return res.status(400).json({ message: 'Deduction amount must be a non-negative number' });
+    return res.status(400).json({ message: 'Bonus amount must be a non-negative number' });
   }
 
   const { row: profile, error: profileError } = await fetchAppProfileRow(userId);
   if (profileError) {
-    reportError(profileError, { source: 'api/payroll deduct profile', userId });
+    reportError(profileError, { source: 'api/payroll bonus profile', userId });
     return res.status(500).json({ message: 'Failed to load employee profile' });
   }
 
@@ -46,9 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     profile?.salary != null && Number.isFinite(Number(profile.salary)) ? Number(profile.salary) : null;
   if (salary == null || salary <= 0) {
     return res.status(400).json({ message: 'Employee has no salary set on their profile' });
-  }
-  if (amount > salary) {
-    return res.status(400).json({ message: 'Deduction cannot exceed profile salary' });
   }
 
   const notes = typeof body.notes === 'string' ? body.notes : null;
@@ -58,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'month must be YYYY-MM' });
   }
 
-  const result = await upsertPayrollDeduction({
+  const result = await upsertPayrollBonus({
     userId,
     amount,
     notes,
@@ -72,15 +69,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   await syncPayrollExpensesForMonth(month, auth.userId);
 
-  const bonus = await getPayrollBonusForUser(userId, month);
+  const deduction = await getPayrollDeductionForUser(userId, month);
+  const net_salary = netSalaryAfterDeduction(salary, deduction, result.amount);
 
   return res.status(200).json({
     success: true,
     user_id: userId,
     month,
-    deduction: result.amount,
-    bonus,
+    bonus: result.amount,
+    deduction,
     base_salary: salary,
-    net_salary: netSalaryAfterDeduction(salary, result.amount, bonus),
+    net_salary,
   });
 }

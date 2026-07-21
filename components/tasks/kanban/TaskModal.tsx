@@ -6,6 +6,7 @@ import { Calendar, Globe, Lock, Trash2, X } from 'lucide-react';
 import {
   TASK_STATUS_LABELS,
   TASK_STATUSES,
+  canSetTaskStatus,
   type TaskStatus,
 } from '@/lib/tasks/taskStatus';
 import { TASK_VISIBILITY_LABELS, type TaskVisibility } from '@/lib/tasks/taskVisibility';
@@ -113,6 +114,8 @@ type TaskModalProps = {
   onSaved: () => void;
   onDelete?: () => void;
   statusOnly?: boolean;
+  /** Tasks admin (`can_administer_tasks`) — required to set Closed. */
+  isTasksAdmin?: boolean;
 };
 
 export default function TaskModal({
@@ -124,6 +127,7 @@ export default function TaskModal({
   onSaved,
   onDelete,
   statusOnly,
+  isTasksAdmin = false,
 }: TaskModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -185,9 +189,17 @@ export default function TaskModal({
     setDueAt(joinDatetimeLocalValue(dueDate, time));
   };
 
+  const statusOptions = TASK_STATUSES.filter(
+    (s) => canSetTaskStatus(s, isTasksAdmin) || s === status,
+  );
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    if (!canSetTaskStatus(status, isTasksAdmin)) {
+      setErr('You cannot close the task.');
+      return;
+    }
     setSaving(true);
     try {
       if (statusOnly && task) {
@@ -323,7 +335,7 @@ export default function TaskModal({
                       onChange={(e) => setStatus(e.target.value as TaskStatus)}
                       className="kanban-modal-select"
                     >
-                      {TASK_STATUSES.map((s) => (
+                      {statusOptions.map((s) => (
                         <option key={s} value={s}>
                           {TASK_STATUS_LABELS[s]}
                         </option>
@@ -333,6 +345,7 @@ export default function TaskModal({
                 </label>
                 <p className="kanban-modal-hint">
                   You can update the status. Title, description, and due date are set by the creator.
+                  {!isTasksAdmin && ' You cannot close the task.'}
                 </p>
                 {(task.attachments?.length ?? 0) > 0 && (
                   <TaskAttachmentsField
@@ -383,7 +396,7 @@ export default function TaskModal({
                           onChange={(e) => setStatus(e.target.value as TaskStatus)}
                           className="kanban-modal-select"
                         >
-                          {TASK_STATUSES.map((s) => (
+                          {statusOptions.map((s) => (
                             <option key={s} value={s}>
                               {TASK_STATUS_LABELS[s]}
                             </option>

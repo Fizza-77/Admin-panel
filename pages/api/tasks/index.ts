@@ -5,7 +5,7 @@ import { isTaskSuperAdmin } from '@/lib/permissions/taskAdmin';
 import { notifyTaskAssignees } from '@/lib/tasks/notifyAssignees';
 import { reportError } from '@/lib/monitoring';
 import { getTaskIdsAssignedToUser, orFilterForVisibleTasks } from '@/lib/tasks/taskQueries';
-import { isTaskStatus } from '@/lib/tasks/taskStatus';
+import { canSetTaskStatus, isTaskStatus } from '@/lib/tasks/taskStatus';
 import { isTaskVisibility } from '@/lib/tasks/taskVisibility';
 import type { TaskWithRelations } from '@/lib/tasks/taskRow';
 import { mapTaskRow, TASK_SELECT_WITH_RELATIONS } from '@/lib/tasks/mapTaskRow';
@@ -108,6 +108,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const title = typeof body.title === 'string' ? body.title.trim() : '';
     const description = typeof body.description === 'string' ? body.description.trim() : null;
     const status = isTaskStatus(body.status) ? body.status : 'to_do';
+    if (!canSetTaskStatus(status, isSuper)) {
+      return res.status(403).json({ message: 'You cannot close the task.' });
+    }
     const visibility = isTaskVisibility(body.visibility) ? body.visibility : 'private';
     let due_at: string | null = null;
     if (typeof body.due_at === 'string' && body.due_at.trim()) {
