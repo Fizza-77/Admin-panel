@@ -1,22 +1,38 @@
 import axios from 'axios';
 
-export async function uploadProfileAvatar(file: File): Promise<string> {
+export async function uploadProfileAvatar(file: File, targetUserId?: string): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await axios.post('/api/profile/avatar', formData, {
+  const url = targetUserId
+    ? `/api/employees/${encodeURIComponent(targetUserId)}/avatar`
+    : '/api/profile/avatar';
+
+  const response = await axios.post(url, formData, {
     withCredentials: true,
   });
 
-  const url = response?.data?.avatar_url;
-  if (typeof url !== 'string' || !url.trim()) {
+  const avatarUrl = response?.data?.avatar_url;
+  if (typeof avatarUrl !== 'string' || !avatarUrl.trim()) {
     throw new Error('Upload succeeded but response is incomplete');
   }
 
-  return url;
+  return avatarUrl;
 }
 
-export async function removeProfileAvatar(): Promise<void> {
+export async function removeProfileAvatar(targetUserId?: string): Promise<void> {
+  if (targetUserId) {
+    const response = await fetch(`/api/employees/${encodeURIComponent(targetUserId)}/avatar`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.message || 'Could not remove profile photo');
+    }
+    return;
+  }
+
   const response = await fetch('/api/profile', {
     method: 'PATCH',
     credentials: 'include',

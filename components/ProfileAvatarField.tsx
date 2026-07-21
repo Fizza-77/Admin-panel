@@ -12,6 +12,8 @@ type ProfileAvatarFieldProps = {
   email: string | null;
   avatarUrl: string | null;
   onAvatarChange: (url: string | null) => void;
+  /** When set, upload/remove targets this employee (set-profiles permission). */
+  targetUserId?: string;
 };
 
 export default function ProfileAvatarField({
@@ -19,6 +21,7 @@ export default function ProfileAvatarField({
   email,
   avatarUrl,
   onAvatarChange,
+  targetUserId,
 }: ProfileAvatarFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -42,7 +45,7 @@ export default function ProfileAvatarField({
     setError(null);
     setUploading(true);
     try {
-      const url = await uploadProfileAvatar(file);
+      const url = await uploadProfileAvatar(file, targetUserId);
       onAvatarChange(url);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to upload photo');
@@ -58,7 +61,7 @@ export default function ProfileAvatarField({
     setError(null);
     setRemoving(true);
     try {
-      await removeProfileAvatar();
+      await removeProfileAvatar(targetUserId);
       onAvatarChange(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to remove photo');

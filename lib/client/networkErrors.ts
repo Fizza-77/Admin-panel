@@ -52,7 +52,7 @@ export function shouldTrackApiFetch(input: RequestInfo | URL): boolean {
     return false;
   }
 
-  if (/\/api\/(tasks\/upload|upload|profile\/avatar)(?:\?|$)/.test(url)) {
+  if (/\/api\/(tasks\/upload|upload|profile\/avatar|employees\/[^/]+\/avatar)(?:\?|$)/.test(url)) {
     return false;
   }
 

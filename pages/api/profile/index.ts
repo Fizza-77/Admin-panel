@@ -3,6 +3,7 @@ import { getAuthUserFromApiRequest } from '@/lib/auth';
 import {
   fetchAppProfileRow,
   updateEmployeePersonalProfile,
+  updateEmployeeAvatarUrl,
 } from '@/lib/permissions/appProfileDb';
 import { normalizePersonalInput } from '@/lib/employees/profile';
 import { formatDbError } from '@/lib/db/errors';
@@ -57,9 +58,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: formatDbError(result.error) });
     }
 
+    let avatar_url = existing?.avatar_url ?? null;
+    if (body.avatar_url === null) {
+      const avatarResult = await updateEmployeeAvatarUrl(user.id, null);
+      if (!avatarResult.ok) {
+        reportError(avatarResult.error, { source: 'api/profile PATCH avatar', userId: user.id });
+        return res.status(500).json({ message: formatDbError(avatarResult.error) });
+      }
+      avatar_url = null;
+    }
+
     return res.status(200).json({
       ...nextPersonal,
-      avatar_url: existing?.avatar_url ?? null,
+      avatar_url,
       email: user.email ?? null,
     });
   }

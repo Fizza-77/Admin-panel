@@ -13,6 +13,7 @@ import { canSetEmployeeProfiles } from '@/lib/permissions/profileAccess';
 import AttendanceReports from '@/components/attendance/AttendanceReports';
 import EmployeeExpensesPanel from '@/components/expenses/EmployeeExpensesPanel';
 import UserAvatar from '@/components/ui/UserAvatar';
+import ProfileAvatarField from '@/components/ProfileAvatarField';
 import { userDisplayLabel } from '@/lib/users/display';
 import {
   composeMonth,
@@ -376,12 +377,24 @@ export default function EmployeeDetailPage({ permissions }: { permissions: AppPe
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="border-b border-slate-100 px-4 py-5 sm:px-6">
               <div className="flex items-start gap-4">
-                <UserAvatar
-                  label={userDisplayLabel(employee.display_name, employee.email, employee.surname)}
-                  avatarUrl={employee.avatar_url}
-                  size="lg"
-                />
-                <div className="min-w-0">
+                {canEditProfiles && userId ? (
+                  <ProfileAvatarField
+                    displayName={employee.display_name}
+                    email={employee.email}
+                    avatarUrl={employee.avatar_url}
+                    targetUserId={userId}
+                    onAvatarChange={(url) => {
+                      setEmployee((prev) => (prev ? { ...prev, avatar_url: url } : prev));
+                    }}
+                  />
+                ) : (
+                  <UserAvatar
+                    label={userDisplayLabel(employee.display_name, employee.email, employee.surname)}
+                    avatarUrl={employee.avatar_url}
+                    size="lg"
+                  />
+                )}
+                <div className="min-w-0 pt-1">
                   <h1 className="text-xl font-semibold text-slate-900">{fullName}</h1>
                   <p className="mt-0.5 text-sm text-slate-500">{employee.email ?? '—'}</p>
                 </div>

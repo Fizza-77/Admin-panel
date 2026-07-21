@@ -463,6 +463,22 @@ export async function updateEmployeePersonalProfile(
   return patchProfileColumns(userId, patch);
 }
 
+/** Update profile photo URL (self or set-profiles admin). */
+export async function updateEmployeeAvatarUrl(
+  userId: string,
+  avatar_url: string | null,
+): Promise<UpsertProfileResult> {
+  const { row } = await fetchAppProfileRow(userId);
+  if (!row) {
+    const bootstrap = await upsertDefaultAppProfile(userId);
+    if (!bootstrap.ok) {
+      return bootstrap;
+    }
+  }
+
+  return patchProfileColumns(userId, { avatar_url });
+}
+
 /** Update admin-only employee fields (role, salary). */
 export async function updateEmployeeAdminProfile(
   userId: string,
